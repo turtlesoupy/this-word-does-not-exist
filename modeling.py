@@ -1,4 +1,5 @@
 import torch
+
 from transformers import GPT2LMHeadModel
 from torch.nn import CrossEntropyLoss
 
@@ -38,6 +39,7 @@ class GPT2LMHeadWithWeightedLossModel(GPT2LMHeadModel):
             # Shift so that tokens < n predict n
             shift_logits = lm_logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
+            shift_loss_weights = loss_weights[..., 1:].contiguous()
             
             # Flatten the tokens
             # loss_fct = CrossEntropyLoss()
@@ -45,7 +47,7 @@ class GPT2LMHeadWithWeightedLossModel(GPT2LMHeadModel):
             
             loss_fct_flat = CrossEntropyLoss(reduction='none')
             loss_flat = loss_fct_flat(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-            weighted_loss_flat = loss_weights.view(-1) * loss_flat
+            weighted_loss_flat = shift_loss_weights.view(-1) * loss_flat
             weighted_loss = torch.mean(weighted_loss_flat)
                                     
             outputs = (weighted_loss,) + outputs

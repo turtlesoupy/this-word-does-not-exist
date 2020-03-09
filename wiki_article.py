@@ -1,6 +1,9 @@
+import os
 import torch
 import re
 import sys
+import logging
+import pickle
 from dataclasses import dataclass
 from io import StringIO
 from transformers import AutoModelWithLMHead, AutoTokenizer, PreTrainedTokenizer
@@ -9,6 +12,7 @@ from torch.nn.utils.rnn import pad_sequence
 from typing import List
 from torch.utils.data import SequentialSampler, DataLoader, Dataset
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class Article:
@@ -90,7 +94,7 @@ class ArticleTitleDataset(Dataset):
                     article_block_size = block_size - len(tokenized_title)
                     for i in range(0, len(tokenized_article_text) - article_block_size + 1, article_block_size): 
                         self.examples.append(
-                            self._make_example(tokenized_text[i : i + article_block_size], tokenized_title)
+                            self._make_example(tokenizer, tokenized_article_text[i : i + article_block_size], tokenized_title)
                         )
                         
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
