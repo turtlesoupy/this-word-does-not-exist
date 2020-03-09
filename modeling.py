@@ -2,6 +2,7 @@ import torch
 from transformers import GPT2LMHeadModel
 from torch.nn import CrossEntropyLoss
 
+
 class GPT2LMHeadWithWeightedLossModel(GPT2LMHeadModel):
     # See https://github.com/huggingface/transformers/blob/master/src/transformers/modeling_gpt2.py
     def forward(

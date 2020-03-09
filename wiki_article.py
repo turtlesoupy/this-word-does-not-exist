@@ -3,11 +3,12 @@ import re
 import sys
 from dataclasses import dataclass
 from io import StringIO
-from transformers import AutoModelWithLMHead, AutoTokenizer
+from transformers import AutoModelWithLMHead, AutoTokenizer, PreTrainedTokenizer
 from scipy import stats
 from torch.nn.utils.rnn import pad_sequence
 from typing import List
-from torch.utils.data import SequentialSampler, DataLoader
+from torch.utils.data import SequentialSampler, DataLoader, Dataset
+
 
 @dataclass
 class Article:
@@ -50,6 +51,66 @@ def refine_wikitext(istream, limit=None):
         text=article_text.getvalue()
     )
     
+    
+class ArticleTitleDataset(Dataset):
+    @staticmethod
+    def _make_example(tokenizer, text_tokens, title_tokens):
+        example = tokenizer.build_inputs_with_special_tokens(text_tokens + title_tokens)
+        start_title_idx = next(i for i in reversed(range(len(example))) if example[i] == title_tokens[0])
+        end_title_idx = start_title_idx + len(title_tokens)
+        bool_mask = [bool(i > start_title_idx and i < end_title_idx) for i in range(len(example))]
+        
+        return (example, bool_mask)
+        
+    
+    def __init__(self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512):
+        assert os.path.isfile(file_path)
+
+        block_size = block_size - (tokenizer.max_len - tokenizer.max_len_single_sentence)
+
+        directory, filename = os.path.split(file_path)
+        cached_features_file = os.path.join(
+            directory, args.model_type + "_cached_lm_" + str(block_size) + "_" + filename
+        )
+
+        if os.path.exists(cached_features_file) and not args.overwrite_cache:
+            logger.info("Loading features from cached file %s", cached_features_file)
+            with open(cached_features_file, "rb") as handle:
+                self.examples = pickle.load(handle)
+        else:
+            logger.info("Creating features from dataset file at %s", directory)
+
+            self.examples = []
+
+            with open(file_path, encoding="utf-8") as f:
+                for article in refine_wikitext(f):
+                    tokenized_title = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(title_tokenization(article.title)))
+                    tokenized_article_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(article.text))
+                    
+                    article_block_size = block_size - len(tokenized_title)
+                    for i in range(0, len(tokenized_article_text) - article_block_size + 1, article_block_size): 
+                        self.examples.append(
+                            self._make_example(tokenized_text[i : i + article_block_size], tokenized_title)
+                        )
+                        
+            # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
+            # If your dataset is small, first you should loook for a bigger one :-) and second you
+            # can change this behavior by adding (model specific) padding.
+
+            logger.info("Saving features into cached file %s", cached_features_file)
+            with open(cached_features_file, "wb") as handle:
+                pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, item):
+        return (
+            torch.tensor(self.examples[item][0], dtype=torch.long),
+            torch.tensor(self.examples[item][1], dtype=torch.bool)
+        )
+
+    
 def generate_text_dataset(istream, ostream, offset=0, stride=1024, limit=None):
     def _output_range(article, start, end):
         text = article.text[start:end]
@@ -62,7 +123,7 @@ def generate_text_dataset(istream, ostream, offset=0, stride=1024, limit=None):
         else:
             ostream.write(text)
             ostream.write(title_tokenization(article.title))       
-    extract_dictionary
+
     for article in refine_wikitext(istream, limit=limit):
         if offset > 0:
             _output_range(article, 0, offset)
