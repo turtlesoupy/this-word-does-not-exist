@@ -136,20 +136,17 @@ def lm_eval(model, tokenizer, file_path, device='cuda', block_size=512, batch_si
 
         
         
-        
+def perplexity(model, tokenizer, sentences, device='cuda', **fwd_args):
 
-
-def perplexity(sentence):
     with torch.no_grad():
-        tokenize_input = tokenizer.tokenize(sentence)
-        tensor_input = torch.tensor([
-            [tokenizer.eos_token_id] + 
-            tokenizer.convert_tokens_to_ids(tokenize_input)
-        ])
-        loss, logits, *_  = model(tensor_input, labels=tensor_input)
+        token_ids = [
+            torch.tensor([tokenizer.eos_token_id] + tokenizer.convert_tokens_to_ids(tokenizer.tokenize(sentence)))
+            for sentence in sentences
+        ]
+        padded_tokens = pad_sequence(token_ids, batch_first=True)
+        tensor_input = padded_tokens.to(device)
+        loss, logits, *_  = model(tensor_input, labels=tensor_input, **fwd_args)
         
-        
-
     lp = 0
     n = 0
     for i, input in enumerate(tensor_input[0][1:]):
@@ -159,9 +156,6 @@ def perplexity(sentence):
         lp += torch.log(predicted_prob[input])
         n += 1
 
-    
-    print(loss)
-    print(- lp /  n)
 
     return -loss
 
