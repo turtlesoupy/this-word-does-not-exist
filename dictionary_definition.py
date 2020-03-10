@@ -137,3 +137,12 @@ class DictionaryDefinitionDataset(Dataset):
             logger.info(f"Saving {len(self.examples)} features into cached file {cached_features_file}")
             with open(cached_features_file, "wb") as handle:
                 pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, item):
+        return (
+            torch.tensor(self.examples[item][0], dtype=torch.long),
+            torch.tensor(self.examples[item][1], dtype=torch.bool),
+        )

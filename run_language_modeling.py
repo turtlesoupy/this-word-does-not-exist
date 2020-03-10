@@ -385,15 +385,15 @@ def train(args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedToke
                 steps_trained_in_current_epoch -= 1
                 continue
 
-            if args.wiki_dataset:
+            if args.wiki_dataset or args.dictionary_dataset:
                 if args.mlm:
-                    raise RuntimeError("Can't do mlm for wiki dataset")
+                    raise RuntimeError("Can't do mlm for wiki / dictionary dataset")
 
                 tokens, loss_mask = batch
                 inputs, labels = (tokens, tokens)
 
                 loss_mask = loss_mask.to(args.device)
-                loss_weights = (~loss_mask) + loss_mask * args.wiki_title_scale
+                loss_weights = (~loss_mask) + loss_mask * args.title_scale
                 inputs = inputs.to(args.device)
                 labels = labels.to(args.device)
                 model.train()
