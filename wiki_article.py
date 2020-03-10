@@ -202,7 +202,6 @@ def lm_eval(model, tokenizer, file_path, device='cuda', block_size=512, batch_si
         
         
 def perplexity(model, tokenizer, sentences, device='cuda', **fwd_args):
-
     with torch.no_grad():
         token_ids = [
             torch.tensor([tokenizer.eos_token_id] + tokenizer.convert_tokens_to_ids(tokenizer.tokenize(sentence)))
