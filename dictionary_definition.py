@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
 import logging
+import os
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -51,26 +53,25 @@ class DictionaryDefinitionDataset(Dataset):
     def title_tokenization(cls, title):
         return f"<title>{title}</title>"
     
-    
     @classmethod
     def _make_example(cls, tokenizer, definition):
         max_len = tokenizer.max_len_single_sentence
         
-        m = re.match(r"\s*" + re.escape(entry.title) + r"\d*\s*(\|[^|]*\|)?\s*", entry.entry_str)
+        m = re.match(r"\s*" + re.escape(definition.title) + r"\d*\s*(\|[^|]*\|)?\s*", definition.entry_str)
         if m:
-            trainable_entry = entry.entry_str[m.span()[1]:].strip()
+            trainable_entry = definition.entry_str[m.span()[1]:].strip()
             if not trainable_entry:
-                raise RuntimeError(f"Bad entry for {entry.title}: '{entry.entry_str}'")
+                raise RuntimeError(f"Bad entry for {definition.title}: '{definition.entry_str}'")
         else:
-            raise RuntimeError(f"Couldn't match {entry.title} on '{entry.entry_str}'")
+            raise RuntimeError(f"Couldn't match {definition.title} on '{definition.entry_str}'")
             
         
         
-        tokenized_title = [tokenizer.bos_token_id] + tokenizer.convert_tokens_to_ids(tokenizer.tokenize(self.title_tokenization(dictionary_definition.title)))
+        tokenized_title = [tokenizer.bos_token_id] + tokenizer.convert_tokens_to_ids(tokenizer.tokenize(cls.title_tokenization(definition.title)))
         tokenized_entry = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(trainable_entry))
         
         if len(tokenized_title) + len(tokenized_entry) > max_len:
-            logger.warn(f"Truncating long entry for {tokenized_title}")
+            logger.warn(f"Truncating long entry for '{definition.title}' (entry is {len(tokenized_entry)})")
         
         all_tokenized = (tokenized_title + tokenized_entry)[:max_len]
         example = tokenizer.build_inputs_with_special_tokens(all_tokenized)
@@ -81,10 +82,11 @@ class DictionaryDefinitionDataset(Dataset):
         
     
     def __init__(self, tokenizer: PreTrainedTokenizer, args, file_path: str, splits=(1.0), split_idx=0):
-        assert os.path.isfile(file_path)
+        assert os.path.isfile(file_path) or os.path.islink(file_path)
         directory, filename = os.path.split(file_path)
+        
         cached_features_file = os.path.join(
-            directory, args.model_type + "_cached_lm_splits_" + "_".join(splits) + "_split_idx_" + split_idx + "_" + filename
+            directory, args.model_type + "_cached_lm_splits_" + "_".join(str(e) for e in splits) + "_split_idx_" + str(split_idx) + "_" + filename
         )
         
         splits_tensor = torch.tensor(splits)
@@ -116,9 +118,9 @@ class DictionaryDefinitionDataset(Dataset):
 
             self.examples = []
 
-            with open(file_path, encoding="utf-8") as f:
+            with open(file_path, "rb") as f:
                 for dictionary_definition in DictionaryDefinition.gen_from_apple_dictionary(f):
-                    if in_split(dictionary_definition)
+                    if in_split(dictionary_definition):
                         self.examples.append(self._make_example(tokenizer, dictionary_definition))
                         
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)

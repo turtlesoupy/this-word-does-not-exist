@@ -30,6 +30,7 @@ import re
 import shutil
 import functools
 import wiki_article
+import dictionary_definition
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -167,6 +168,14 @@ def load_and_cache_examples(args, tokenizer, evaluate=False):
         return LineByLineTextDataset(tokenizer, args, file_path=file_path, block_size=args.block_size)
     elif args.wiki_dataset:
         return wiki_article.ArticleTitleDataset(tokenizer, args, file_path=file_path, block_size=args.block_size)
+    elif args.dictionary_dataset:
+        return dictionary_definition.DictionaryDefinitionDataset(
+            tokenizer, 
+            args,
+            file_path=file_path,
+            splits=[float(e) for e in args.splits],
+            split_idx=int(args.eval_split_idx if evaluate else args.train_split_idx),
+        )
     else:
         return TextDataset(tokenizer, args, file_path=file_path, block_size=args.block_size)
 
@@ -258,7 +267,7 @@ def train(args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedToke
 
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     
-    if args.wiki_dataset:
+    if args.wiki_dataset or args.dictionary_dataset:
         collate_fn = functools.partial(collate_wiki, tokenizer)
     else:
         collate_fn = functools.partial(collate, tokenizer)
@@ -467,7 +476,7 @@ def evaluate(args, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prefi
     args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
     # Note that DistributedSampler samples randomly
 
-    if args.wiki_dataset:
+    if args.wiki_dataset or args.dictionary_dataset:
         collate_fn = functools.partial(collate_wiki, tokenizer)
     else:
         collate_fn = functools.partial(collate, tokenizer)
@@ -490,7 +499,7 @@ def evaluate(args, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prefi
     model.eval()
 
     for batch in tqdm(eval_dataloader, desc="Evaluating"):
-        if args.wiki_dataset:
+        if args.wiki_dataset or args.dictionary_dataset:
             if args.mlm:
                 raise RuntimeError("Can't do mlm for wiki dataset")
                  
@@ -498,7 +507,7 @@ def evaluate(args, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prefi
             inputs, labels = (tokens, tokens)
                 
             loss_mask = loss_mask.to(args.device)
-            loss_weights = (~loss_mask) + loss_mask * args.wiki_title_scale
+            loss_weights = (~loss_mask) + loss_mask * args.title_scale
             inputs = inputs.to(args.device)
             labels = labels.to(args.device)
             outputs = model(inputs, labels=labels, loss_weights=loss_weights)
@@ -566,7 +575,24 @@ def main():
         help="Whether this is a wiki dataset",
     )
     parser.add_argument(
-        "--wiki_title_scale", default=1.0, type=float, help="How much to scale up title for wiki dataset tokens",
+        "--dictionary_dataset",
+        action="store_true",
+        help="Whether this is a dictionary dataset",
+    )
+    parser.add_argument(
+        "--splits",
+        action="append",
+        help="Set splits of the dataset"
+    )
+    parser.add_argument(
+        "--eval_split_idx", type=int, help="Evaluation index of splits",
+    )
+    parser.add_argument(
+        "--train_split_idx", type=int, help="What index of splits we are in",
+    )
+    
+    parser.add_argument(
+        "--title_scale", default=1.0, type=float, help="How much to scale up title for wiki/dictionary dataset tokens",
     )
     parser.add_argument(
         "--should_continue", action="store_true", help="Whether to continue from latest checkpoint in output_dir"
