@@ -41,7 +41,11 @@ def refine_wikitext(istream, limit=None):
             last_title = title
             article_text = StringIO()
         else:
-            cleaned_line = re.sub(re.escape(last_title), "TITLE", line, flags=re.IGNORECASE) if last_title else line
+            cleaned_line = (
+                re.sub(re.escape(last_title), "TITLE", line, flags=re.IGNORECASE)
+                if last_title
+                else line
+            )
             article_text.write(cleaned_line)
 
         last_blank = re.match("^\s*$", line)
@@ -56,20 +60,29 @@ class ArticleTitleDataset(Dataset):
     @staticmethod
     def _make_example(tokenizer, text_tokens, title_tokens):
         example = tokenizer.build_inputs_with_special_tokens(text_tokens + title_tokens)
-        start_title_idx = next(i for i in reversed(range(len(example))) if example[i] == title_tokens[0])
+        start_title_idx = next(
+            i for i in reversed(range(len(example))) if example[i] == title_tokens[0]
+        )
         end_title_idx = start_title_idx + len(title_tokens)
-        bool_mask = [bool(i > start_title_idx and i < end_title_idx) for i in range(len(example))]
+        bool_mask = [
+            bool(i > start_title_idx and i < end_title_idx) for i in range(len(example))
+        ]
 
         return (example, bool_mask)
 
-    def __init__(self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512):
+    def __init__(
+        self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
+    ):
         assert os.path.isfile(file_path)
 
-        block_size = block_size - (tokenizer.max_len - tokenizer.max_len_single_sentence)
+        block_size = block_size - (
+            tokenizer.max_len - tokenizer.max_len_single_sentence
+        )
 
         directory, filename = os.path.split(file_path)
         cached_features_file = os.path.join(
-            directory, args.model_type + "_cached_lm_" + str(block_size) + "_" + filename,
+            directory,
+            args.model_type + "_cached_lm_" + str(block_size) + "_" + filename,
         )
 
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
@@ -86,13 +99,21 @@ class ArticleTitleDataset(Dataset):
                     tokenized_title = tokenizer.convert_tokens_to_ids(
                         tokenizer.tokenize(title_tokenization(article.title))
                     )
-                    tokenized_article_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(article.text))
+                    tokenized_article_text = tokenizer.convert_tokens_to_ids(
+                        tokenizer.tokenize(article.text)
+                    )
 
                     article_block_size = block_size - len(tokenized_title)
-                    for i in range(0, len(tokenized_article_text) - article_block_size + 1, article_block_size,):
+                    for i in range(
+                        0,
+                        len(tokenized_article_text) - article_block_size + 1,
+                        article_block_size,
+                    ):
                         self.examples.append(
                             self._make_example(
-                                tokenizer, tokenized_article_text[i : i + article_block_size], tokenized_title,
+                                tokenizer,
+                                tokenized_article_text[i : i + article_block_size],
+                                tokenized_title,
                             )
                         )
 
@@ -166,20 +187,28 @@ def lm_eval(model, tokenizer, file_path, device="cuda", block_size=512, batch_si
     def collate(examples: List[torch.Tensor]):
         if tokenizer._pad_token is None:
             return pad_sequence(examples, batch_first=True)
-        return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
+        return pad_sequence(
+            examples, batch_first=True, padding_value=tokenizer.pad_token_id
+        )
 
     block_size = block_size - (tokenizer.max_len - tokenizer.max_len_single_sentence)
     eval_dataset = []
     with open(file_path, encoding="utf-8") as f:
         text = f.read()
         tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
-        for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
-            tokenized = tokenizer.build_inputs_with_special_tokens(tokenized_text[i : i + block_size])
+        for i in range(
+            0, len(tokenized_text) - block_size + 1, block_size
+        ):  # Truncate in block of block_size
+            tokenized = tokenizer.build_inputs_with_special_tokens(
+                tokenized_text[i : i + block_size]
+            )
             tensorized = torch.tensor(tokenized, dtype=torch.long)
             eval_dataset.append(tensorized)
 
     eval_sampler = SequentialSampler(eval_dataset)
-    eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=batch_size, collate_fn=collate)
+    eval_dataloader = DataLoader(
+        eval_dataset, sampler=eval_sampler, batch_size=batch_size, collate_fn=collate
+    )
 
     for batch in eval_dataloader:
         inputs, labels = (batch, batch)
@@ -200,7 +229,10 @@ def lm_eval(model, tokenizer, file_path, device="cuda", block_size=512, batch_si
 def perplexity(model, tokenizer, sentences, device="cuda", **fwd_args):
     with torch.no_grad():
         token_ids = [
-            torch.tensor([tokenizer.eos_token_id] + tokenizer.convert_tokens_to_ids(tokenizer.tokenize(sentence)))
+            torch.tensor(
+                [tokenizer.eos_token_id]
+                + tokenizer.convert_tokens_to_ids(tokenizer.tokenize(sentence))
+            )
             for sentence in sentences
         ]
         padded_tokens = pad_sequence(token_ids, batch_first=True)

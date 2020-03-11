@@ -46,7 +46,9 @@ class GPT2LMHeadWithWeightedLossModel(GPT2LMHeadModel):
             # loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
             loss_fct_flat = CrossEntropyLoss(reduction="none")
-            loss_flat = loss_fct_flat(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            loss_flat = loss_fct_flat(
+                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
+            )
             weighted_loss_flat = shift_loss_weights.view(-1) * loss_flat
             weighted_loss = torch.mean(weighted_loss_flat)
 
