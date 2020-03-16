@@ -5,7 +5,7 @@ import random
 import time
 import requests
 import requests_cache
-
+import string
 
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
@@ -78,7 +78,7 @@ def get_with_retries(session, url):
     try:
         ret = session.get(url)
     except ConnectionError:
-        time.sleep(0.5)
+        time.sleep(2)
         logger.info(f"Retrying {url}")
         ret = session.get(url)
 
@@ -96,12 +96,13 @@ def fetch_letter_page(session, letter, page=1):
     logging.info(f"Fetching {url}")
     character_page = get_with_retries(session, url)
     parsed_page = BeautifulSoup(character_page.text, "html.parser")
-    last_string = parsed_page.body.find("a", string=re.compile("Last.*"))
+    last_string = parsed_page.body.find("a", string=re.compile("Last ».*"))
     if not last_string:
         raise RuntimeError(f"Unable to resolve location of last page")
 
     pages_match = re.search("page=(\d+)", last_string["href"])
     if not pages_match:
+
         raise RuntimeError(f"Unable to parse num pages from {last_string}")
     num_pages = int(pages_match.group(1))
 
@@ -114,7 +115,7 @@ def fetch_letter_page(session, letter, page=1):
     return UrbanDictionaryIndexPage(url=url, definition_urls=definition_urls, num_pages=num_pages)
 
 
-def fetch_all_letter_definitions(session, letter, limit=None):
+def fetch_all_letter_word_url(session, letter, limit=None):
     first_ip = fetch_letter_page(session, letter)
 
     all_definitions = OrderedDict((d.title, d) for d in first_ip.definition_urls)
@@ -126,6 +127,17 @@ def fetch_all_letter_definitions(session, letter, limit=None):
             break
 
     return all_definitions
+
+
+def fetch_all_word_urls(session, limit=None):
+    letters = list(string.ascii_uppercase) + ["#"]
+
+    all_definitions = OrderedDict()
+    for i, letter in enumerate(letters):
+        all_definitions.update(fetch_all_letter_word_url(session, letter))
+
+        if limit is not None and i > limit:
+            break
 
 
 def _parse_definition_div(definition_div, url=None):
