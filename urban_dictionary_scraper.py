@@ -10,7 +10,7 @@ import string
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
 from collections import OrderedDict
-from typing import List
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 UD_ROOT = "https://www.urbandictionary.com"
@@ -26,7 +26,7 @@ class UrbanDictionaryWordURL:
 class UrbanDictionaryIndexPage:
     url: str
     definition_urls: List[UrbanDictionaryWordURL]
-    num_pages: int
+    num_pages: Optional[int]
 
 
 @dataclass
@@ -98,13 +98,13 @@ def fetch_letter_page(session, letter, page=1):
     parsed_page = BeautifulSoup(character_page.text, "html.parser")
     last_string = parsed_page.body.find("a", string=re.compile("Last ».*"))
     if not last_string:
-        raise RuntimeError(f"Unable to resolve location of last page")
-
-    pages_match = re.search("page=(\d+)", last_string["href"])
-    if not pages_match:
-
-        raise RuntimeError(f"Unable to parse num pages from {last_string}")
-    num_pages = int(pages_match.group(1))
+        logger.warning(f"Unable to resolve location of last page in {url}")
+        num_pages = None
+    else:
+        pages_match = re.search("page=(\d+)", last_string["href"])
+        if not pages_match:
+            raise RuntimeError(f"Unable to parse num pages from {last_string} in {url}")
+        num_pages = int(pages_match.group(1))
 
     definitions = parsed_page.body.find_all("a", href=re.compile(".*define.php.*"), class_=None)
     if not definitions:
@@ -117,6 +117,9 @@ def fetch_letter_page(session, letter, page=1):
 
 def fetch_all_letter_word_url(session, letter, limit=None):
     first_ip = fetch_letter_page(session, letter)
+
+    if not first_ip.num_pages:
+        raise RuntimeError(f"First page of {letter} lacks total number of pages!")
 
     all_definitions = OrderedDict((d.title, d) for d in first_ip.definition_urls)
     for i in range(2, first_ip.num_pages + 1):
