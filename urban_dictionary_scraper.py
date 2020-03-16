@@ -6,6 +6,7 @@ import time
 import requests
 import requests_cache
 import string
+import urllib
 
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
@@ -67,20 +68,20 @@ def make_throttle_hook(rand_timeout=1.0):
     return hook
 
 
-def get_session(expiry=24 * 3600):
-    session = requests_cache.CachedSession("requests_cache", expire_after=3600)
-    session.hooks = {"response": make_throttle_hook()}
+def get_session(throttle=0.1, expiry=24 * 3600):
+    session = requests_cache.CachedSession("requests_cache", expire_after=expiry)
+    session.hooks = {"response": make_throttle_hook(rand_timeout=throttle)}
 
     return session
 
 
-def get_with_retries(session, url):
+def get_with_retries(session, url, timeout=10.0):
     try:
-        ret = session.get(url)
-    except ConnectionError:
+        ret = session.get(url, timeout=timeout)
+    except (ConnectionError, requests.exceptions.Timeout):
         time.sleep(2)
         logger.info(f"Retrying {url}")
-        ret = session.get(url)
+        ret = session.get(url, timeout=timeout)
 
     if ret.status_code != 200:
         raise RuntimeError(f"Unexpected status code in {url}")
@@ -89,11 +90,12 @@ def get_with_retries(session, url):
 
 
 def fetch_letter_page(session, letter, page=1):
-    url = f"{UD_ROOT}/browse.php?character={letter}"
+    url = f"{UD_ROOT}/browse.php?character={urllib.parse.quote(letter)}"
     if page > 1:
         url = f"{url}&page={page}"
 
-    logging.info(f"Fetching {url}")
+    if random.random() < 0.1:
+        logging.info(f"Fetching {url}")
     character_page = get_with_retries(session, url)
     parsed_page = BeautifulSoup(character_page.text, "html.parser")
     last_string = parsed_page.body.find("a", string=re.compile("Last ».*"))
@@ -133,14 +135,17 @@ def fetch_all_letter_word_url(session, letter, limit=None):
 
 
 def fetch_all_word_urls(session, limit=None):
-    letters = list(string.ascii_uppercase) + ["#"]
+    letters = list(string.ascii_uppercase) + ["*"]
 
     all_definitions = OrderedDict()
     for i, letter in enumerate(letters):
+        logging.info(f"Starting fetch of words for {letter}")
         all_definitions.update(fetch_all_letter_word_url(session, letter))
 
         if limit is not None and i > limit:
             break
+
+    return all_definitions
 
 
 def _parse_definition_div(definition_div, url=None):
@@ -164,8 +169,10 @@ def _parse_definition_div(definition_div, url=None):
     tag_divs = definition_div.find_all("div", class_="tags")
     if len(tag_divs) > 1:
         raise RuntimeError(f"Found more than one tag div in {url}")
-
-    tags = [e.text.strip() for e in tag_divs[0].find_all("a")]
+    elif len(tag_divs) == 0:
+        tags = []
+    else:
+        tags = [e.text.strip() for e in tag_divs[0].find_all("a")]
 
     author_divs = definition_div.find_all("div", class_="contributor")
     if len(author_divs) > 1:
