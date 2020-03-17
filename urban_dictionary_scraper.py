@@ -7,11 +7,13 @@ import requests
 import requests_cache
 import string
 import urllib
+import asyncio
 
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
 from collections import OrderedDict
 from typing import List, Optional
+from retry import retry
 
 logger = logging.getLogger(__name__)
 UD_ROOT = "https://www.urbandictionary.com"
@@ -75,13 +77,9 @@ def get_session(throttle=0.1, expiry=24 * 3600):
     return session
 
 
+@retry(exceptions=(ConnectionError, requests.exceptions.Timeout), tries=5, delay=3, logger=logger)
 def get_with_retries(session, url, timeout=10.0):
-    try:
-        ret = session.get(url, timeout=timeout)
-    except (ConnectionError, requests.exceptions.Timeout):
-        time.sleep(2)
-        logger.info(f"Retrying {url}")
-        ret = session.get(url, timeout=timeout)
+    ret = session.get(url, timeout=timeout)
 
     if ret.status_code != 200:
         raise RuntimeError(f"Unexpected status code in {url}")
