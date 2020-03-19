@@ -31,6 +31,7 @@ import shutil
 import functools
 import wiki_article
 import dictionary_definition
+import urban_dictionary_scraper
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -184,6 +185,14 @@ def load_and_cache_examples(args, tokenizer, evaluate=False):
             splits=[float(e) for e in args.splits],
             split_idx=int(args.eval_split_idx if evaluate else args.train_split_idx),
         )
+    elif args.urban_dictionary_dataset:
+        return urban_dictionary_scraper.UrbanDictionaryDataset(
+            tokenizer,
+            args,
+            file_path=file_path,
+            splits=[float(e) for e in args.splits],
+            split_idx=int(args.eval_split_idx if evaluate else args.train_split_idx),
+        )
     else:
         return TextDataset(tokenizer, args, file_path=file_path, block_size=args.block_size)
 
@@ -275,7 +284,7 @@ def train(args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedToke
 
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
 
-    if args.wiki_dataset or args.dictionary_dataset:
+    if args.wiki_dataset or args.dictionary_dataset or args.urban_dictionary_dataset:
         collate_fn = functools.partial(collate_wiki, tokenizer)
     else:
         collate_fn = functools.partial(collate, tokenizer)
@@ -385,7 +394,7 @@ def train(args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedToke
                 steps_trained_in_current_epoch -= 1
                 continue
 
-            if args.wiki_dataset or args.dictionary_dataset:
+            if args.wiki_dataset or args.dictionary_dataset or args.urban_dictionary_dataset:
                 if args.mlm:
                     raise RuntimeError("Can't do mlm for wiki / dictionary dataset")
 
@@ -488,7 +497,7 @@ def evaluate(args, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prefi
     args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
     # Note that DistributedSampler samples randomly
 
-    if args.wiki_dataset or args.dictionary_dataset:
+    if args.wiki_dataset or args.dictionary_dataset or args.urban_dictionary_dataset:
         collate_fn = functools.partial(collate_wiki, tokenizer)
     else:
         collate_fn = functools.partial(collate, tokenizer)
@@ -511,7 +520,7 @@ def evaluate(args, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prefi
     model.eval()
 
     for batch in tqdm(eval_dataloader, desc="Evaluating"):
-        if args.wiki_dataset or args.dictionary_dataset:
+        if args.wiki_dataset or args.dictionary_dataset or args.urban_dictionary_dataset:
             if args.mlm:
                 raise RuntimeError("Can't do mlm for wiki dataset")
 
@@ -586,6 +595,9 @@ def main():
     )
     parser.add_argument(
         "--dictionary_dataset", action="store_true", help="Whether this is a dictionary dataset",
+    )
+    parser.add_argument(
+        "--urban_dictionary_dataset", action="store_true", help="Whether this is an urban dictionary dataset",
     )
     parser.add_argument("--splits", action="append", help="Set splits of the dataset")
     parser.add_argument(
@@ -760,7 +772,8 @@ def main():
     # Setup CUDA, GPU & distributed training
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-        args.n_gpu = 0 if args.no_cuda else torch.cuda.device_count()
+        # args.n_gpu = 0 if args.no_cuda else torch.cuda.device_count()
+        args.n_gpu = 0 if args.no_cuda else 1  # Use first cuda device
     else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.cuda.set_device(args.local_rank)
         device = torch.device("cuda", args.local_rank)
@@ -825,6 +838,11 @@ def main():
     else:
         logger.info("Training new model from scratch")
         model = model_class(config=config)
+
+    if args.urban_dictionary_dataset:
+        logger.info("Urban dictionary dataset: adding special tokens and resizing model")
+        tokenizer.add_special_tokens(urban_dictionary_scraper.SpecialTokens.special_tokens_dict())
+        model.resize_token_embeddings(len(tokenizer))
 
     model.to(args.device)
 
