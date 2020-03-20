@@ -520,6 +520,9 @@ def evaluate(args, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prefi
     model.eval()
 
     for batch in tqdm(eval_dataloader, desc="Evaluating"):
+        if args.eval_subsampling != 1.0 and random.random() >= args.eval_subsampling:
+            continue
+
         if args.wiki_dataset or args.dictionary_dataset or args.urban_dictionary_dataset:
             if args.mlm:
                 raise RuntimeError("Can't do mlm for wiki dataset")
@@ -598,6 +601,9 @@ def main():
     )
     parser.add_argument(
         "--urban_dictionary_dataset", action="store_true", help="Whether this is an urban dictionary dataset",
+    )
+    parser.add_argument(
+        "--eval_subsampling", type=float, default=1.0, help="Amount of sub-sampling of evaluation set",
     )
     parser.add_argument("--splits", action="append", help="Set splits of the dataset")
     parser.add_argument(
