@@ -275,6 +275,81 @@ def fetch_all_definitions(
     return already_done
 
 
+@dataclass
+class GeneratedWord:
+    word: str
+    definition: str
+    example: str
+
+
+def generate_words(tokenizer, model, num=100, max_iterations=10, batch_size=50, max_length=512, top_k=50, blacklist=()):
+    blacklist = set(e.lower() for e in blacklist)
+    ret = []
+    num_iteration = 0
+    prefix = SpecialTokens.BOS_TOKEN
+    input = tokenizer.encode(prefix, return_tensors="pt").to("cuda")
+    split_re_pat = (
+        f"^{re.escape(SpecialTokens.BOS_TOKEN)}(.+?){re.escape(SpecialTokens.TITLE_DEFINITION_SEP)}"
+        f"(.+){re.escape(SpecialTokens.DEFINITION_EXAMPLE_SEP)}(.+?){re.escape(SpecialTokens.EOS_TOKEN)}"
+    )
+    split_re = re.compile(split_re_pat, flags=re.MULTILINE | re.DOTALL)
+
+    num_generated = 0
+    num_failed_match = 0
+    num_succeeded_match = 0
+    num_example_filtered = 0
+    num_example_nonfiltered = 0
+    num_blacklist_filtered = 0
+
+    while len(ret) < num and num_iteration < max_iterations:
+        num_iteration += 1
+        generated = model.generate(
+            input,
+            max_length=max_length,
+            num_return_sequences=batch_size,
+            top_k=top_k,
+            do_sample=True,
+            pad_token_id=tokenizer.pad_token_id,
+            bos_token_id=tokenizer.bos_token_id,
+            eos_token_ids=tokenizer.eos_token_id,
+        )
+
+        num_generated += batch_size
+
+        for i in range(generated.size()[0]):
+            sentence_tokens = generated[i, :].tolist()
+            decoded = tokenizer.decode(sentence_tokens)
+
+            m = split_re.match(decoded)
+            if not m:
+                num_failed_match += 1
+                continue
+
+            num_succeeded_match += 1
+
+            title, definition, example = [e.strip() for e in m.groups()]
+
+            if title.lower() not in example.lower():
+                num_example_filtered += 1
+                continue
+
+            num_example_nonfiltered += 1
+
+            if title.lower() in blacklist:
+                num_blacklist_filtered += 1
+                continue
+
+            ret.append(GeneratedWord(title, definition, example))
+
+    logger.warning(
+        f"Generation: tried {num_generated}, failed {num_failed_match} ({num_failed_match / num_generated:.2f})"
+        f", no word in example {num_example_filtered} ({num_example_filtered / num_succeeded_match:.2f})"
+        f", filtered from blacklist {num_blacklist_filtered} ({num_blacklist_filtered / num_example_nonfiltered:.2f})"
+    )
+
+    return ret[:num]
+
+
 class SpecialTokens:
     BOS_TOKEN = "<|bod|>"
     EOS_TOKEN = "<|eod|>"
@@ -294,37 +369,21 @@ class SpecialTokens:
 
 
 class UrbanDictionaryDataset(Dataset):
-    @classmethod
-    def _make_examples(cls, tokenizer, word):
-        max_len = tokenizer.max_len_single_sentence
-
-        # Adding prefix space to beginning as docs suggest
-        bos_token_ids = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(SpecialTokens.BOS_TOKEN))
-        eos_token_ids = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(SpecialTokens.EOS_TOKEN))
-        title_definition_sep_ids = tokenizer.convert_tokens_to_ids(
-            tokenizer.tokenize(SpecialTokens.TITLE_DEFINITION_SEP)
-        )
-        definition_example_sep_ids = tokenizer.convert_tokens_to_ids(
-            tokenizer.tokenize(SpecialTokens.DEFINITION_EXAMPLE_SEP)
-        )
-
-        max_nonspecial_len = max_len - (
-            len(bos_token_ids) + len(eos_token_ids) + len(title_definition_sep_ids) + len(definition_example_sep_ids)
+    def _make_examples(self, tokenizer, word):
+        max_nonspecial_len = self.max_len - (
+            len(self.bos_token_ids)
+            + len(self.eos_token_ids)
+            + len(self.title_definition_sep_ids)
+            + len(self.definition_example_sep_ids)
         )
 
         examples = []
 
         for definition in word.definitions:
             # TODO: do I need this ?
-            title_tokenization = tokenizer.convert_tokens_to_ids(
-                tokenizer.tokenize(definition.word, add_prefix_space=True)
-            )
-            meaning_tokenization = tokenizer.convert_tokens_to_ids(
-                tokenizer.tokenize(definition.meaning, add_prefix_space=True)
-            )
-            example_tokenization = tokenizer.convert_tokens_to_ids(
-                tokenizer.tokenize(definition.examples[0], add_prefix_space=True)
-            )
+            title_tokenization = tokenizer.encode(definition.word)
+            meaning_tokenization = tokenizer.encode(definition.meaning)
+            example_tokenization = tokenizer.encode(definition.examples[0])
 
             if len(title_tokenization) > max_nonspecial_len:
                 logger.error(f"Title of word '{definition.word}' too long to tokenize, skipping")
@@ -350,22 +409,24 @@ class UrbanDictionaryDataset(Dataset):
 
             example = list(
                 itertools.chain(
-                    bos_token_ids,
+                    self.bos_token_ids,
                     title_tokenization,
-                    title_definition_sep_ids,
+                    self.title_definition_sep_ids,
                     meaning_tokenization[:max_meaning_len],
-                    definition_example_sep_ids,
+                    self.definition_example_sep_ids,
                     example_tokenization[:max_example_len],
-                    eos_token_ids,
+                    self.eos_token_ids,
                 )
             )
 
             bool_mask = [
-                bool(i >= len(bos_token_ids) and i < (len(bos_token_ids) + len(title_tokenization)))
+                bool(i >= len(self.bos_token_ids) and i < (len(self.bos_token_ids) + len(title_tokenization)))
                 for i in range(len(example))
             ]
 
-            assert len(example) <= max_len, f"Example should be less than max length: {len(example)} Vs. {max_len}"
+            assert (
+                len(example) <= self.max_len
+            ), f"Example should be less than max length: {len(example)} Vs. {self.max_len}"
 
             examples.append((example, bool_mask))
 
@@ -374,6 +435,16 @@ class UrbanDictionaryDataset(Dataset):
     def __init__(
         self, tokenizer: PreTrainedTokenizer, args, file_path: str, splits=(1.0), split_idx=0,
     ):
+        self.max_len = min(tokenizer.max_len_single_sentence, args.block_size)
+        self.bos_token_ids = tokenizer.encode(SpecialTokens.BOS_TOKEN)
+        self.eos_token_ids = tokenizer.encode(SpecialTokens.EOS_TOKEN)
+        self.title_definition_sep_ids = tokenizer.encode(SpecialTokens.TITLE_DEFINITION_SEP)
+        self.definition_example_sep_ids = tokenizer.encode(SpecialTokens.DEFINITION_EXAMPLE_SEP)
+
+        logger.info(
+            f"Dataset: max length={self.max_len}, bos_token_len={len(self.bos_token_ids)}, eos_token_len={len(self.eos_token_ids)}, title_definition_sep_len={len(self.title_definition_sep_ids)}, definition_example_sep_len={len(self.definition_example_sep_ids)}"
+        )
+
         assert os.path.isfile(file_path) or os.path.islink(file_path)
         directory, filename = os.path.split(file_path)
 
@@ -384,6 +455,8 @@ class UrbanDictionaryDataset(Dataset):
             + "_".join(str(e) for e in splits)
             + "_split_idx_"
             + str(split_idx)
+            + "_max_len_"
+            + str(self.max_len)
             + "_"
             + filename,
         )

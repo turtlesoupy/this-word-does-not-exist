@@ -55,7 +55,7 @@ class DictionaryDefinitionDataset(Dataset):
 
     @classmethod
     def _make_example(cls, tokenizer, definition):
-        max_len = tokenizer.max_len_single_sentence
+        max_len = self.max_len
 
         m = re.match(r"\s*" + re.escape(definition.title) + r"\d*\s*(\|[^|]*\|)?\s*", definition.entry_str,)
         if m:
@@ -84,6 +84,9 @@ class DictionaryDefinitionDataset(Dataset):
         self, tokenizer: PreTrainedTokenizer, args, file_path: str, splits=(1.0), split_idx=0,
     ):
         assert os.path.isfile(file_path) or os.path.islink(file_path)
+
+        self.max_len = min(tokenizer.max_len_single_sentence, args.block_size)
+
         directory, filename = os.path.split(file_path)
 
         cached_features_file = os.path.join(
@@ -93,6 +96,8 @@ class DictionaryDefinitionDataset(Dataset):
             + "_".join(str(e) for e in splits)
             + "_split_idx_"
             + str(split_idx)
+            + "_max_len_"
+            + str(self.max_len)
             + "_"
             + filename,
         )
