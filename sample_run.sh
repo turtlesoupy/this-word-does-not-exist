@@ -1,12 +1,13 @@
 #!/bin/bash
 python run_language_modeling.py \
- --output_dir=models/urban_dictionary_cleaned_top_def_mu02_lr_0_0001_tw1 \
+ --summary_comment=cleaned_words_all_def_min_upvotes_20_max_len_40_min_len_4_no_upper_randomized__urban_dictionary_cleaned_all_def_lr_0_00005_tw1 \
+ --output_dir=models/urban_dictionary_cleaned_all_def_lr_0_00005_tw1 \
  --model_type=gpt2-weighted-loss \
  --model_name_or_path=gpt2 \
  --do_train \
- --train_data_file=data/cleaned_words_top_def_mu02_randomized.pickle \
+ --train_data_file=data/cleaned_words_all_def_min_upvotes_20_max_len_40_min_len_4_no_upper_randomized.pickle \
  --do_eval \
- --eval_data_file=data/cleaned_words_top_def_mu02_randomized.pickle \
+ --eval_data_file=data/cleaned_words_all_def_min_upvotes_20_max_len_40_min_len_4_no_upper_randomized.pickle \
  --per_gpu_train_batch_size 2 \
  --per_gpu_eval_batch_size 2 \
  --gradient_accumulation_steps 2 \
@@ -17,7 +18,8 @@ python run_language_modeling.py \
  --evaluate_during_training \
  --save_steps 10000 \
  --logging_steps 5000 \
- --eval_subsampling 0.1 \
- --learning_rate 0.0001 \
+ --eval_subsampling 0.2 \
+ --learning_rate 0.00005 \
  --block_size 768 \
- --warmup_steps 500
+ --num_train_epochs 5 \
+ --should_continue

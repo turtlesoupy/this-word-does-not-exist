@@ -3,7 +3,7 @@ from zlib import decompress
 import sys
 import re
 import hashlib
-from bs4 import BeautifulSoup
+import bs4
 from dataclasses import dataclass
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
@@ -11,16 +11,86 @@ import logging
 import os
 import torch
 import pickle
-from typing import Optional
+from typing import Optional, List
 
 logger = logging.getLogger(__name__)
+
+
+# Helpers for beautiful soup
+def find_at_most_one(bs, *args, **kwargs):
+    t = bs.find_all(*args, **kwargs)
+    if not t:
+        return t
+    elif len(t) > 1:
+        raise InvalidParseAssumptionError("Too many found!")
+    else:
+        return t[0]
+
+
+def find_exactly_one(bs, *args, **kwargs):
+    t = bs.find_all(*args, **kwargs)
+    if not t:
+        raise InvalidParseAssumptionError("Not enough tags found!")
+    elif len(t) > 1:
+        raise InvalidParseAssumptionError("Too many found!")
+    else:
+        return t[0]
+
+
+def find_at_least_one(bs, *args, **kwargs):
+    t = bs.find_all(*args, **kwargs)
+    if not t:
+        raise InvalidParseAssumption("Not enough tags found!")
+    return t
+
+
+class InvalidParseAssumptionError(RuntimeError):
+    pass
+
+
+@dataclass
+class Pronounciation:
+    text: str
+    type: str
+
+
+@dataclass
+class Definition:
+    pos_modifier: Optional[str]
+    definition: str
+    examples: List[str]
+    topic: Optional[str]
+    date: Optional[str]
+
+
+@dataclass
+class ReferenceDefinition:
+    pos_modifier: Optional[str]
+    reference: str
+
+
+@dataclass
+class Sense:
+    pos: Optional[str]
+    definitions: List[Definition]
+
+
+@dataclass
+class Entry:
+    word: str
+    variant: Optional[int]
+    senses: List[Sense]
+    pronounciations: List[Pronounciation]
+    phrases: List[Definition]
+    origin: Optional[str]
+    derivatives: List[str]
 
 
 @dataclass
 class DictionaryDefinition:
     title: str
     entry_str: str
-    parsed_entry: Optional[BeautifulSoup] = None
+    parsed_entry: Optional[bs4.BeautifulSoup] = None
 
     @classmethod
     def gen_from_apple_dictionary(cls, f):
@@ -33,8 +103,8 @@ class DictionaryDefinition:
             for m in re.finditer(b"<d:entry[^\n]+", buf):
                 entry = m.group().decode()
                 title = re.search('d:title="(.*?)"', entry).group(1)
-                title_soup = BeautifulSoup(title, features="html.parser")
-                entry_soup = BeautifulSoup(entry, features="html.parser")
+                title_soup = bs4.BeautifulSoup(title, features="html.parser")
+                entry_soup = bs4.BeautifulSoup(entry, features="html.parser")
 
                 title = title_soup.get_text()
                 entry = entry_soup.get_text()
@@ -46,6 +116,166 @@ class DictionaryDefinition:
                 yield cls(
                     title=title_soup.get_text(), entry_str=entry_soup.get_text(), parsed_entry=entry_soup,
                 )
+
+
+class AppleDictParser:
+    @classmethod
+    def parse_pronounciations(cls, parsed_entry):
+        pronounciation_enclose = find_at_most_one(parsed_entry, "span", class_="prx") or find_at_most_one(
+            parsed_entry, "span", class_="pr"
+        )
+
+        if not pronounciation_enclose or not pronounciation_enclose.get_text().strip():
+            return None
+
+        pronounciations = pronounciation_enclose("span", class_="ph")
+        if not pronounciations:
+            raise InvalidParseAssumptionError(f"No pronounciations found")
+
+        p_dict = [Pronounciation(text=p.get_text(), type=p["d:pr"]) for p in pronounciations]
+        return p_dict
+
+    @classmethod
+    def parse_sense_definitions(cls, parsed_entry):
+        global_pos_modifier_span = parsed_entry.find_all("span", class_="gg")
+        global_pos_modifier_span = [
+            e for e in global_pos_modifier_span if not e.find_parents("span", class_="msDict")
+        ]  # Filter out local ones
+        global_pos_modifier = global_pos_modifier_span[0].get_text().strip() if global_pos_modifier_span else None
+        definitions = []
+        entry_spans = find_at_least_one(parsed_entry, "span", class_="msDict")
+        for entry_span in entry_spans:
+            definition_spans = entry_span.find_all("span", class_="df")
+            if len(definition_spans) > 1:
+                raise InvalidParseAssumptionError(f"Too many definitions for word!")
+            elif definition_spans:
+                definition_span = definition_spans[0]
+                example_spans = entry_span("span", class_="ex")
+                topic_span = find_at_most_one(entry_span, "span", class_="lg")
+                local_pos_modifier_span = entry_span.find("span", class_="gg", recursive=False)
+                local_pos_modifier = local_pos_modifier_span and local_pos_modifier_span.get_text().strip()
+
+                definition = definition_span.get_text().strip()
+                examples = [e.get_text().strip().strip(":").strip() for e in example_spans]
+                topic = topic_span and topic_span.get_text().strip()
+
+                date_spans = find_at_most_one(definition_span, "span", class_="dg")
+                date = date_spans.get_text().strip() if date_spans else None
+
+                definitions.append(
+                    Definition(
+                        pos_modifier=local_pos_modifier or global_pos_modifier,
+                        definition=definition,
+                        examples=examples,
+                        topic=topic,
+                        date=date,
+                    )
+                )
+            else:
+                xrg = find_exactly_one(entry_span, "span", class_="xrg")
+                referenced_term = find_exactly_one(xrg, "span", class_="xr")
+                reference = referenced_term.get_text().strip()
+                definitions.append(ReferenceDefinition(pos_modifier=global_pos_modifier, reference=reference,))
+        return definitions
+
+    @classmethod
+    def parse_sense(cls, parsed_entry):
+        pos_spans = parsed_entry("span", class_="tg_pos")
+        if len(pos_spans) > 1:
+            pos = " ".join([e.get_text().strip() for e in pos_spans])
+        elif not pos_spans:
+            pos_span = find_at_most_one(parsed_entry, "span", class_="posg")
+            pos = pos_span.get_text().strip() if pos_span else None
+        else:
+            pos = pos_spans[0].get_text().strip()
+
+        if parsed_entry.findChildren("span", class_="se2"):
+            sense_definitions = []
+            for c in parsed_entry.children:
+                if set(c["class"]) & set(("tg_pos", "posg", "x_xdh")):
+                    continue
+                elif not c.get_text().strip():
+                    continue
+                elif "se2" in c["class"]:
+                    sense_definitions.append(cls.parse_sense_definitions(c))
+                else:
+                    raise InvalidParseAssumptionError(f"WEIRD TAG: {c}")
+        else:
+            sense_definitions = cls.parse_sense_definitions(parsed_entry)
+
+        if not sense_definitions:
+            raise InvalidParseAssumptionError("No sense definitions!")
+        return Sense(pos=pos, definitions=sense_definitions)
+
+    @classmethod
+    def parse_derivatives(cls, parsed_entry):
+        words = find_at_least_one(parsed_entry, "span", class_="l")
+        return [e.get_text().strip() for e in words]
+
+    @classmethod
+    def parse_origin(cls, parsed_entry):
+        etym_type = find_exactly_one(parsed_entry, "span", class_="tg_etym", recursive=False)
+        if etym_type.get_text().strip() != "ORIGIN":
+            raise InvalidParseAssumptionError(f"Unexpected etym type: {etym_type}")
+
+        origin_span = find_exactly_one(parsed_entry, "span", class_="x_xo1")
+        origin = origin_span.get_text().strip()
+        return origin
+
+    @classmethod
+    def parse(cls, parsed_entry):
+        entry = find_exactly_one(parsed_entry, "d:entry")
+        head_entry = find_exactly_one(entry, "span", class_="hg")
+        defn_entry = find_exactly_one(entry, "span", class_="sg")
+
+        head_word_span = find_exactly_one(head_entry, "span", class_="hw")
+        word = " ".join([t.strip() for t in head_word_span.contents if type(t) == bs4.element.NavigableString]).strip()
+
+        variant_span = find_at_most_one(head_word_span, "span", class_="tg_hw")
+        variant = int(variant_span.get_text()) if variant_span else None
+
+        pronounciations = cls.parse_pronounciations(head_entry)
+
+        senses = defn_entry("span", class_="se1")
+        if len(senses) == 0:
+            raise InvalidParseAssumptionError(f"No senses found!")
+
+        senses = []
+        for c in defn_entry.children:
+            if "se1" in c["class"]:
+                senses.append(cls.parse_sense(c))
+            elif c.get_text().strip():
+                raise InvalidParseAssumptionError(f"Weird tag found in definition: {c.prettify()}!")
+
+        phrases = []
+        origin = None
+        subentries = entry.find_all("span", class_="t_derivatives")  # derivatives # TODO: verify
+        derivatives = []
+
+        for subentry in entry.children:
+            if subentry == head_entry or subentry == defn_entry:
+                continue
+            elif "t_phrases" in subentry["class"]:
+                phrases = cls.parse_sense_definitions(subentry)
+                continue
+            elif "t_derivatives" in subentry["class"]:
+                derivatives = cls.parse_derivatives(subentry)
+            elif "etym" in subentry["class"]:
+                origin = cls.parse_origin(subentry)
+                continue
+            else:
+                raise InvalidParseAssumptionError(f"Weird entry found: {subentry}")
+
+        # TODO: determine other direct children types
+        return Entry(
+            word=word,
+            variant=variant,
+            pronounciations=pronounciations,
+            senses=senses,
+            phrases=phrases,
+            origin=origin,
+            derivatives=derivatives,
+        )
 
 
 class DictionaryDefinitionDataset(Dataset):

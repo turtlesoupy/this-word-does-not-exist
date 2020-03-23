@@ -278,7 +278,7 @@ def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args) -> T
 def train(args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedTokenizer) -> Tuple[int, float]:
     """ Train the model """
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter(comment=args.summary_comment)
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
 
@@ -735,6 +735,7 @@ def main():
     )
     parser.add_argument("--server_ip", type=str, default="", help="For distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="For distant debugging.")
+    parser.add_argument("--summary_comment", type=str, help="Summary comment for tensorboard")
     args = parser.parse_args()
 
     if args.model_type in ["bert", "roberta", "distilbert", "camembert"] and not args.mlm:
@@ -753,8 +754,7 @@ def main():
             raise ValueError("Used --should_continue but no checkpoint was found in --output_dir.")
         else:
             args.model_name_or_path = sorted_checkpoints[-1]
-
-    if (
+    elif (
         os.path.exists(args.output_dir)
         and os.listdir(args.output_dir)
         and args.do_train
