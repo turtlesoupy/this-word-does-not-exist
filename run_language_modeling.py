@@ -69,7 +69,6 @@ from transformers import (
 )
 
 from modeling import GPT2LMHeadWithWeightedLossModel
-from wiki_article import ArticleTitleDataset
 
 
 try:
@@ -177,7 +176,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False):
     if args.line_by_line:
         return LineByLineTextDataset(tokenizer, args, file_path=file_path, block_size=args.block_size)
     elif args.wiki_dataset:
-        return wiki_article.ArticleTitleDataset(tokenizer, args, file_path=file_path, block_size=args.block_size)
+        return datasets.WikiArticleTitleDataset(tokenizer, args, file_path=file_path, block_size=args.block_size)
     elif args.dictionary_dataset:
         return datasets.BinaryDictionaryDefinitionDataset(
             tokenizer,
