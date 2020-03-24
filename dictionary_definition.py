@@ -11,7 +11,7 @@ import logging
 import os
 import torch
 import pickle
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def find_exactly_one(bs, *args, **kwargs):
 def find_at_least_one(bs, *args, **kwargs):
     t = bs.find_all(*args, **kwargs)
     if not t:
-        raise InvalidParseAssumption("Not enough tags found!")
+        raise InvalidParseAssumptionError("Not enough tags found!")
     return t
 
 
@@ -60,7 +60,7 @@ class Definition:
     definition: str
     examples: List[str]
     topic: Optional[str]
-    date: Optional[str]
+    dates: List[str]
 
 
 @dataclass
@@ -82,8 +82,10 @@ class Entry:
     senses: List[Sense]
     pronounciations: List[Pronounciation]
     phrases: List[Definition]
+    phrasal_verbs: List[Tuple[str, List[Definition]]]
     origin: Optional[str]
     derivatives: List[str]
+    notes: List[str]
 
 
 @dataclass
@@ -121,19 +123,21 @@ class DictionaryDefinition:
 class AppleDictParser:
     @classmethod
     def parse_pronounciations(cls, parsed_entry):
-        pronounciation_enclose = find_at_most_one(parsed_entry, "span", class_="prx") or find_at_most_one(
-            parsed_entry, "span", class_="pr"
-        )
+        pronounciation_encloses = [e for e in parsed_entry.find_all("span", class_="prx") if e.get_text().strip()]
+        if len(pronounciation_encloses) == 0:
+            pronounciation_encloses = [e for e in parsed_entry.find_all("span", class_="pr") if e.get_text().strip()]
 
-        if not pronounciation_enclose or not pronounciation_enclose.get_text().strip():
+        if not pronounciation_encloses:
             return None
 
-        pronounciations = pronounciation_enclose("span", class_="ph")
-        if not pronounciations:
-            raise InvalidParseAssumptionError(f"No pronounciations found")
+        ret = []
+        for pronounciation_enclose in pronounciation_encloses:
+            pronounciations = pronounciation_enclose("span", class_="ph")
+            if not pronounciations:
+                raise InvalidParseAssumptionError(f"No pronounciations found")
 
-        p_dict = [Pronounciation(text=p.get_text(), type=p["d:pr"]) for p in pronounciations]
-        return p_dict
+            ret.extend([Pronounciation(text=p.get_text(), type=p["d:pr"]) for p in pronounciations])
+        return ret
 
     @classmethod
     def parse_sense_definitions(cls, parsed_entry):
@@ -145,37 +149,51 @@ class AppleDictParser:
         definitions = []
         entry_spans = find_at_least_one(parsed_entry, "span", class_="msDict")
         for entry_span in entry_spans:
+            if not entry_span.get_text().strip().strip("•"):  # Some malformed entries, e.g. thrash
+                continue
+
             definition_spans = entry_span.find_all("span", class_="df")
-            if len(definition_spans) > 1:
-                raise InvalidParseAssumptionError(f"Too many definitions for word!")
-            elif definition_spans:
-                definition_span = definition_spans[0]
-                example_spans = entry_span("span", class_="ex")
-                topic_span = find_at_most_one(entry_span, "span", class_="lg")
-                local_pos_modifier_span = entry_span.find("span", class_="gg", recursive=False)
-                local_pos_modifier = local_pos_modifier_span and local_pos_modifier_span.get_text().strip()
+            xrg_spans = entry_span.find_all("span", class_="xrg")
+            if definition_spans:
+                for definition_span in definition_spans:
+                    example_spans = entry_span("span", class_="ex")
+                    topic_spans = [
+                        e for e in entry_span("span", class_="lg") if not e.find_parents("span", class_="eg")
+                    ]
+                    if len(topic_spans) > 1:
+                        logging.warning(f"Too many topics found: {topic_spans}, picking first one")
 
-                definition = definition_span.get_text().strip()
-                examples = [e.get_text().strip().strip(":").strip() for e in example_spans]
-                topic = topic_span and topic_span.get_text().strip()
+                    local_pos_modifier_span = entry_span.find("span", class_="gg", recursive=False)
+                    local_pos_modifier = local_pos_modifier_span and local_pos_modifier_span.get_text().strip()
 
-                date_spans = find_at_most_one(definition_span, "span", class_="dg")
-                date = date_spans.get_text().strip() if date_spans else None
+                    definition = definition_span.get_text().strip()
+                    examples = [e.get_text().strip().strip(":").strip() for e in example_spans]
+                    topic = topic_spans and topic_spans[0].get_text().strip()
 
-                definitions.append(
-                    Definition(
-                        pos_modifier=local_pos_modifier or global_pos_modifier,
-                        definition=definition,
-                        examples=examples,
-                        topic=topic,
-                        date=date,
+                    date_spans = definition_span("span", class_="dg")
+                    dates = [e.get_text().strip() for e in date_spans]
+
+                    definitions.append(
+                        Definition(
+                            pos_modifier=local_pos_modifier or global_pos_modifier,
+                            definition=definition,
+                            examples=examples,
+                            topic=topic,
+                            dates=dates,
+                        )
                     )
-                )
+            elif xrg_spans:
+                for xrg in xrg_spans:
+                    referenced_terms = find_at_least_one(xrg, "span", class_="xr")
+
+                    for referenced_term in referenced_terms:
+                        reference = referenced_term.get_text().strip()
+                        definitions.append(ReferenceDefinition(pos_modifier=global_pos_modifier, reference=reference,))
+            elif entry_span.find("span", class_="ex"):
+                logger.warning(f"Silently ignoring example without corresponding definition {entry_span}")
             else:
-                xrg = find_exactly_one(entry_span, "span", class_="xrg")
-                referenced_term = find_exactly_one(xrg, "span", class_="xr")
-                reference = referenced_term.get_text().strip()
-                definitions.append(ReferenceDefinition(pos_modifier=global_pos_modifier, reference=reference,))
+                raise InvalidParseAssumptionError(f"Weird span: {entry_span}")
+
         return definitions
 
     @classmethod
@@ -198,6 +216,10 @@ class AppleDictParser:
                     continue
                 elif "se2" in c["class"]:
                     sense_definitions.append(cls.parse_sense_definitions(c))
+                elif "note" in c["class"]:
+                    logger.warning(f"Dropping note in word sense {c}")
+                elif "msDict" in c["class"]:
+                    logger.warning(f"Dropping unexpected msDict in sense {c}")
                 else:
                     raise InvalidParseAssumptionError(f"WEIRD TAG: {c}")
         else:
@@ -221,6 +243,19 @@ class AppleDictParser:
         origin_span = find_exactly_one(parsed_entry, "span", class_="x_xo1")
         origin = origin_span.get_text().strip()
         return origin
+
+    @classmethod
+    def parse_phrasal_verbs(cls, parsed_entry):
+        subentries = find_at_least_one(parsed_entry, "span", class_="subEntry")
+        ret = []
+        for subentry in subentries:
+            word_span = subentry.find("span", class_="x_xoh") or subentry.find("span", class_="x_xot")
+            if subentry.find("span", class_="msDict"):
+                definitions = cls.parse_sense_definitions(subentry)
+            else:
+                definitions = []
+            ret.append((word_span.get_text().strip(), definitions))
+        return ret
 
     @classmethod
     def parse(cls, parsed_entry):
@@ -251,18 +286,22 @@ class AppleDictParser:
         origin = None
         subentries = entry.find_all("span", class_="t_derivatives")  # derivatives # TODO: verify
         derivatives = []
+        phrasal_verbs = []
+        notes = []
 
         for subentry in entry.children:
             if subentry == head_entry or subentry == defn_entry:
                 continue
             elif "t_phrases" in subentry["class"]:
                 phrases = cls.parse_sense_definitions(subentry)
-                continue
             elif "t_derivatives" in subentry["class"]:
                 derivatives = cls.parse_derivatives(subentry)
+            elif "t_phrasalVerbs" in subentry["class"]:
+                phrasal_verbs = cls.parse_phrasal_verbs(subentry)
             elif "etym" in subentry["class"]:
                 origin = cls.parse_origin(subentry)
-                continue
+            elif "note" in subentry["class"]:
+                notes.append(subentry.get_text())
             else:
                 raise InvalidParseAssumptionError(f"Weird entry found: {subentry}")
 
@@ -273,8 +312,10 @@ class AppleDictParser:
             pronounciations=pronounciations,
             senses=senses,
             phrases=phrases,
+            phrasal_verbs=phrasal_verbs,
             origin=origin,
             derivatives=derivatives,
+            notes=notes,
         )
 
 
