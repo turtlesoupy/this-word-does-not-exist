@@ -7,6 +7,7 @@ import hashlib
 import string
 import itertools
 import dictionary_definition
+import torch
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
 from typing import NamedTuple, List, Optional
@@ -34,27 +35,28 @@ def _split_range(splits, split_idx):
 
 
 def _in_split_range(split_range, randomizer_str):
-    def in_split(dictionary_definiton):
-        val = int(hashlib.md5(randomizer_str.encode("utf-8")).hexdigest(), 16,) % 100000 / 100000
-        return (val >= start_range and val < end_range).item()
+    start_range, end_range = split_range
+    val = int(hashlib.md5(randomizer_str.encode("utf-8")).hexdigest(), 16,) % 100000 / 100000
+    return (val >= start_range and val < end_range).item()
 
 
 def _cache_path(base_directory, filename, **keys):
-    path = [base_directory]
-    for k, v in keys:
-        if isinstance(v, types.StringTypes):
-            path.append(f"_{k}-{v}_")
+    path = []
+    for k, v in keys.items():
+        if isinstance(v, str):
+            path.append(f"{k}-{v}")
             continue
 
         try:
-            path.append(f"_{k}-{'-'.join(str(e) for e in iter(v))})_")
+            path.append(f"{k}-{'-'.join(str(e) for e in iter(v))}")
+            continue
         except TypeError:
             pass
 
-        path.append(f"_{k}-{str(v)}_")
+        path.append(f"{k}-{str(v)}")
 
     path.append(filename)
-    return os.path.join(path)
+    return os.path.join(base_directory, "__".join(path))
 
 
 class TokenGroup(NamedTuple):
@@ -168,21 +170,19 @@ class ParsedDictionaryDefinitionDataset(Dataset):
     def __init__(
         self, tokenizer: PreTrainedTokenizer, args, file_path: str, splits=(1.0), split_idx=0,
     ):
-        # self.max_len = min(tokenizer.max_len_single_sentence, args.block_size)
-        self.max_len = 768
+        self.max_len = min(tokenizer.max_len_single_sentence, args.block_size)
         self.bos_token_ids = tokenizer.encode(SpecialTokens.BOS_TOKEN)
         self.eos_token_ids = tokenizer.encode(SpecialTokens.EOS_TOKEN)
         self.pos_sep_ids = tokenizer.encode(SpecialTokens.POS_SEP)
         self.definition_sep_ids = tokenizer.encode(SpecialTokens.DEFINITION_SEP)
         self.example_sep_ids = tokenizer.encode(SpecialTokens.EXAMPLE_SEP)
         self.topic_sep_ids = tokenizer.encode(SpecialTokens.TOPIC_SEP)
-        return
 
         assert os.path.isfile(file_path) or os.path.islink(file_path)
         directory, filename = os.path.split(file_path)
 
         cached_features_file = _cache_path(
-            directory, filename, splits=splits, split_idx=split_idx, max_len=self.max_len,
+            directory, filename, model_type=args.model_type, splits=splits, split_idx=split_idx, max_len=self.max_len,
         )
 
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
@@ -199,11 +199,11 @@ class ParsedDictionaryDefinitionDataset(Dataset):
             split_range = _split_range(splits, split_idx)
 
             with open(file_path, "rb") as f:
-                words = list(pickle.load(f).values())
+                entries = pickle.load(f)
 
-            for word in words:
-                if _in_split(word.title):
-                    self.examples.extend(self._make_examples(tokenizer, word))
+            for entry in entries:
+                if _in_split_range(split_range, entry.word):
+                    self.examples.extend(self._make_examples(tokenizer, entry))
 
             logger.info(f"Saving {len(self.examples)} features into cached file {cached_features_file}")
             with open(cached_features_file, "wb") as handle:
@@ -211,6 +211,9 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
     def __len__(self):
         return len(self.examples)
+
+    def __getitem__(self, item):
+        return torch.tensor(self.examples[item], dtype=torch.long)
 
 
 class BinaryDictionaryDefinitionDataset(Dataset):
@@ -241,9 +244,8 @@ class BinaryDictionaryDefinitionDataset(Dataset):
         all_tokenized = (tokenized_title + tokenized_entry)[:max_len]
         example = tokenizer.build_inputs_with_special_tokens(all_tokenized)
         assert len(example) == len(all_tokenized), "If this fails our tokenizer is weird"
-        bool_mask = [bool(i > 1 and i <= len(tokenized_title)) for i in range(len(example))]
 
-        return (example, bool_mask)
+        return example
 
     def __init__(
         self, tokenizer: PreTrainedTokenizer, args, file_path: str, splits=(1.0), split_idx=0,
@@ -254,7 +256,7 @@ class BinaryDictionaryDefinitionDataset(Dataset):
 
         directory, filename = os.path.split(file_path)
         cached_features_file = _cache_path(
-            directory, filename, splits=splits, split_idx=split_idx, max_len=self.max_len,
+            directory, filename, model_type=args.model_type, splits=splits, split_idx=split_idx, max_len=self.max_len,
         )
 
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
@@ -270,7 +272,7 @@ class BinaryDictionaryDefinitionDataset(Dataset):
 
             with open(file_path, "rb") as f:
                 for dictionary_definition in DictionaryDefinition.gen_from_apple_dictionary(f):
-                    if _in_split(split_range, dictionary_definition.title):
+                    if _in_split_range(split_range, dictionary_definition.title):
                         self.examples.append(self._make_example(tokenizer, dictionary_definition))
 
             logger.info(f"Saving {len(self.examples)} features into cached file {cached_features_file}")
@@ -281,10 +283,7 @@ class BinaryDictionaryDefinitionDataset(Dataset):
         return len(self.examples)
 
     def __getitem__(self, item):
-        return (
-            torch.tensor(self.examples[item][0], dtype=torch.long),
-            torch.tensor(self.examples[item][1], dtype=torch.bool),
-        )
+        return torch.tensor(self.examples[item], dtype=torch.long)
 
 
 class UrbanDictionaryDataset(Dataset):
@@ -303,16 +302,11 @@ class UrbanDictionaryDataset(Dataset):
                 ],
             )
 
-            bool_mask = [
-                bool(i >= len(self.bos_token_ids) and i < (len(self.bos_token_ids) + len(title_tokenization)))
-                for i in range(len(example))
-            ]
-
             assert (
                 len(example) <= self.max_len
             ), f"Example should be less than max length: {len(example)} Vs. {self.max_len}"
 
-            examples.append((example, bool_mask))
+            examples.append(example)
 
         return examples
 
@@ -329,7 +323,7 @@ class UrbanDictionaryDataset(Dataset):
         directory, filename = os.path.split(file_path)
 
         cached_features_file = _cache_path(
-            directory, filename, splits=splits, split_idx=split_idx, max_len=self.max_len,
+            directory, filename, model_type=args.model_type, splits=splits, split_idx=split_idx, max_len=self.max_len,
         )
 
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
@@ -349,7 +343,7 @@ class UrbanDictionaryDataset(Dataset):
                 words = list(pickle.load(f).values())
 
             for word in words:
-                if _in_split(word.title):
+                if _in_split_range(split_range, word.title):
                     self.examples.extend(self._make_examples(tokenizer, word))
 
             logger.info(f"Saving {len(self.examples)} features into cached file {cached_features_file}")
@@ -360,7 +354,4 @@ class UrbanDictionaryDataset(Dataset):
         return len(self.examples)
 
     def __getitem__(self, item):
-        return (
-            torch.tensor(self.examples[item][0], dtype=torch.long),
-            torch.tensor(self.examples[item][1], dtype=torch.bool),
-        )
+        return torch.tensor(self.examples[item], dtype=torch.long)
