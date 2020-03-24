@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import types
 import os
 import logging
@@ -7,6 +8,7 @@ import hashlib
 import string
 import itertools
 import dictionary_definition
+import re
 import torch
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
@@ -118,6 +120,133 @@ class SpecialTokens:
 
 
 class ParsedDictionaryDefinitionDataset(Dataset):
+    @dataclass
+    class GeneratedWord:
+        word: str
+        pos: Optional[str]
+        topic: Optional[str]
+        definition: str
+        example: Optional[str]
+        from_example_expansion: bool = False
+
+    @classmethod
+    def in_blacklist(cls, word, blacklist):
+        word = word.strip().lower()
+        return (
+            word in blacklist
+            or word.rstrip("s") in blacklist
+            or word.rstrip("ing") in blacklist
+            or all(e in blacklist for e in word.split())
+        )
+
+    @classmethod
+    def generate_words(
+        cls,
+        tokenizer,
+        model,
+        prefix=SpecialTokens.BOS_TOKEN,
+        num=100,
+        max_iterations=10,
+        batch_size=50,
+        max_length=512,
+        top_k=50,
+        blacklist=(),
+        do_example_expansion=False,
+    ):
+        ret = []
+        num_iteration = 0
+        if isinstance(prefix, str):
+            input = tokenizer.encode(prefix, return_tensors="pt").to("cuda")
+        else:
+            input = torch.tensor([prefix], dtype=torch.long).to("cuda")
+
+        eos_token_ids = tokenizer.encode(SpecialTokens.EOS_TOKEN)
+        example_sep_ids = tokenizer.encode(SpecialTokens.EXAMPLE_SEP)
+        split_re_pat = (
+            f"^{re.escape(SpecialTokens.BOS_TOKEN)}(?P<title>.+?)"
+            f"(?:{re.escape(SpecialTokens.POS_SEP)}(?P<pos>.+?))?"
+            f"(?:{re.escape(SpecialTokens.TOPIC_SEP)}(?P<topic>.+?))?"
+            f"{re.escape(SpecialTokens.DEFINITION_SEP)}(?P<definition>.+?)"
+            f"(?:{re.escape(SpecialTokens.EXAMPLE_SEP)}(?P<example>.+?))*"
+            f"{re.escape(SpecialTokens.EOS_TOKEN)}"
+        )
+        split_re = re.compile(split_re_pat, flags=re.MULTILINE | re.DOTALL)
+
+        seen_titles = set()
+        while len(ret) < num and num_iteration < max_iterations:
+            num_iteration += 1
+            generated = model.generate(
+                input,
+                max_length=max_length,
+                num_return_sequences=batch_size,
+                top_k=top_k,
+                do_sample=True,
+                pad_token_id=tokenizer.pad_token_id,
+                bos_token_id=tokenizer.bos_token_id,
+                eos_token_ids=tokenizer.eos_token_id,
+            )
+
+            for i in range(generated.size()[0]):
+                if len(ret) >= num:
+                    break
+
+                sentence_tokens = generated[i, :].tolist()
+                decoded = tokenizer.decode(sentence_tokens)
+
+                m = split_re.match(decoded)
+                if not m:
+                    continue
+
+                title = m.group("title")
+                definition = m.group("definition")
+                topic = m.group("topic")
+                pos = m.group("pos")
+                example = m.group("example")
+
+                if cls.in_blacklist(title, blacklist) or title.strip().lower() in seen_titles:
+                    continue
+
+                if not example or not example.strip() or title.strip().lower().rstrip("s") not in example.lower():
+                    if do_example_expansion:
+                        eos_loc = max(
+                            i
+                            for i in range(len(sentence_tokens))
+                            if sentence_tokens[i : (i + len(eos_token_ids))] == eos_token_ids
+                        )
+                        example_prefix = sentence_tokens[:eos_loc]
+                        example_prefix.extend(example_sep_ids)
+
+                        more_words = cls.generate_words(
+                            tokenizer,
+                            model,
+                            num=1,
+                            prefix=example_prefix,
+                            max_iterations=1,
+                            max_length=max_length,
+                            top_k=top_k,
+                            blacklist=blacklist,
+                            do_example_expansion=False,
+                        )
+                        if more_words:
+                            more_words[0].from_example_expansion = True
+                            ret.append(more_words[0])
+                            seen_titles.add(title.strip().lower())
+                    else:
+                        continue
+                else:
+                    ret.append(
+                        cls.GeneratedWord(
+                            word=title and title.strip(),
+                            definition=definition and definition.strip(),
+                            example=example and example.strip(),
+                            pos=pos and pos.strip(),
+                            topic=topic and topic.strip(),
+                        )
+                    )
+                    seen_titles.add(title.strip().lower())
+
+        return ret[:num]
+
     def _make_examples(self, tokenizer, entry: dictionary_definition.Entry):
         examples = []
         for sense in entry.senses:
@@ -177,6 +306,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         self.definition_sep_ids = tokenizer.encode(SpecialTokens.DEFINITION_SEP)
         self.example_sep_ids = tokenizer.encode(SpecialTokens.EXAMPLE_SEP)
         self.topic_sep_ids = tokenizer.encode(SpecialTokens.TOPIC_SEP)
+        return
 
         assert os.path.isfile(file_path) or os.path.islink(file_path)
         directory, filename = os.path.split(file_path)
