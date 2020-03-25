@@ -129,14 +129,45 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         example: Optional[str]
         from_example_expansion: bool = False
 
+    @dataclass
+    class GenerationStats:
+        num_iterations: int = 0
+
+        num_items_considered: int = 0
+        num_failed_match: int = 0
+        num_blacklist_filtered: int = 0
+        num_seen_filtered: int = 0
+        num_proper_noun_filtered: int = 0
+
+        num_example_filtered: int = 0
+
+        num_example_expansions: int = 0
+        num_example_expansions_successful: int = 0
+        num_returned: int = 0
+
+        def __str__(self):
+            return f"iterations={self.num_iterations} | " + ", ".join(
+                f"{k} {v / self.num_items_considered:.2f}@{v}"
+                for k, v in (
+                    ("items_considered", self.num_items_considered),
+                    ("failed_match", self.num_failed_match),
+                    ("blacklist_filtered", self.num_blacklist_filtered),
+                    ("seen_filtered", self.num_seen_filtered),
+                    ("proper_noun_filtered", self.num_proper_noun_filtered),
+                    ("example_filtered", self.num_example_filtered),
+                    ("example_expansions", self.num_example_expansions),
+                    ("example_expansion_success", self.num_example_expansions_successful),
+                    ("returned", self.num_returned),
+                )
+            )
+
     @classmethod
-    def in_blacklist(cls, word, blacklist):
+    def in_blacklist(cls, word, blacklist, recursive=True):
         word = word.strip().lower()
         return (
             word in blacklist
-            or word.rstrip("s") in blacklist
-            or word.rstrip("ing") in blacklist
-            or all(e in blacklist for e in word.split())
+            or re.sub(r"('s|s|ing)$", "", word) in blacklist
+            or (recursive and all(cls.in_blacklist(e, blacklist, recursive=False) for e in word.split()))
         )
 
     @classmethod
@@ -152,6 +183,8 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         top_k=50,
         blacklist=(),
         do_example_expansion=False,
+        num_expansion_candidates=10,
+        filter_proper_nouns=False,
     ):
         ret = []
         num_iteration = 0
@@ -173,12 +206,14 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         split_re = re.compile(split_re_pat, flags=re.MULTILINE | re.DOTALL)
 
         seen_titles = set()
+        stats = cls.GenerationStats()
         while len(ret) < num and num_iteration < max_iterations:
             num_iteration += 1
+            stats.num_iterations += 1
             generated = model.generate(
                 input,
                 max_length=max_length,
-                num_return_sequences=batch_size,
+                num_return_sequences=min(num, batch_size),
                 top_k=top_k,
                 do_sample=True,
                 pad_token_id=tokenizer.pad_token_id,
@@ -190,11 +225,13 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                 if len(ret) >= num:
                     break
 
+                stats.num_items_considered += 1
                 sentence_tokens = generated[i, :].tolist()
                 decoded = tokenizer.decode(sentence_tokens)
 
                 m = split_re.match(decoded)
                 if not m:
+                    stats.num_failed_match += 1
                     continue
 
                 title = m.group("title")
@@ -203,11 +240,26 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                 pos = m.group("pos")
                 example = m.group("example")
 
-                if cls.in_blacklist(title, blacklist) or title.strip().lower() in seen_titles:
+                if cls.in_blacklist(title, blacklist):
+                    stats.num_blacklist_filtered += 1
                     continue
 
-                if not example or not example.strip() or title.strip().lower().rstrip("s") not in example.lower():
+                if title.strip().lower() in seen_titles:
+                    stats.num_seen_filtered += 1
+                    continue
+
+                if title.strip()[:1].isupper():
+                    stats.num_proper_noun_filtered += 1
+                    continue
+
+                if (
+                    not example
+                    or not example.strip()
+                    or title.strip().lower().rstrip("s") not in example.lower()
+                    or (title.strip()[0].isupper() and title.strip().rstrip("s") not in example)
+                ):
                     if do_example_expansion:
+                        stats.num_example_expansions += 1
                         eos_loc = max(
                             i
                             for i in range(len(sentence_tokens))
@@ -216,22 +268,28 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                         example_prefix = sentence_tokens[:eos_loc]
                         example_prefix.extend(example_sep_ids)
 
-                        more_words = cls.generate_words(
+                        more_words, _ = cls.generate_words(
                             tokenizer,
                             model,
-                            num=1,
+                            num=num_expansion_candidates,
+                            batch_size=num_expansion_candidates,
                             prefix=example_prefix,
                             max_iterations=1,
                             max_length=max_length,
                             top_k=top_k,
                             blacklist=blacklist,
                             do_example_expansion=False,
+                            filter_proper_nouns=filter_proper_nouns,
                         )
+                        # TODO: Do I really want to prefer longer examples?
+                        more_words.sort(key=lambda x: len(x.example), reverse=True)
                         if more_words:
+                            stats.num_example_expansions_successful += 1
                             more_words[0].from_example_expansion = True
                             ret.append(more_words[0])
                             seen_titles.add(title.strip().lower())
                     else:
+                        stats.num_example_filtered += 1
                         continue
                 else:
                     ret.append(
@@ -245,7 +303,8 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     )
                     seen_titles.add(title.strip().lower())
 
-        return ret[:num]
+        stats.num_returned = len(ret)
+        return ret[:num], stats
 
     def _make_examples(self, tokenizer, entry: dictionary_definition.Entry):
         examples = []
@@ -306,7 +365,6 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         self.definition_sep_ids = tokenizer.encode(SpecialTokens.DEFINITION_SEP)
         self.example_sep_ids = tokenizer.encode(SpecialTokens.EXAMPLE_SEP)
         self.topic_sep_ids = tokenizer.encode(SpecialTokens.TOPIC_SEP)
-        return
 
         assert os.path.isfile(file_path) or os.path.islink(file_path)
         directory, filename = os.path.split(file_path)
