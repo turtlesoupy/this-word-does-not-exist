@@ -176,15 +176,17 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         tokenizer,
         model,
         prefix=SpecialTokens.BOS_TOKEN,
+        
         num=100,
         max_iterations=10,
-        batch_size=50,
-        max_length=512,
-        top_k=50,
+        
+        generation_args={},
+        expansion_generation_overrides={},
+        
         blacklist=(),
         do_example_expansion=False,
-        num_expansion_candidates=10,
         filter_proper_nouns=False,
+        num_expansion_candidates=10,
     ):
         ret = []
         num_iteration = 0
@@ -212,13 +214,10 @@ class ParsedDictionaryDefinitionDataset(Dataset):
             stats.num_iterations += 1
             generated = model.generate(
                 input,
-                max_length=max_length,
-                num_return_sequences=min(num, batch_size),
-                top_k=top_k,
-                do_sample=True,
                 pad_token_id=tokenizer.pad_token_id,
                 bos_token_id=tokenizer.bos_token_id,
                 eos_token_ids=tokenizer.eos_token_id,
+                **generation_args,
             )
 
             for i in range(generated.size()[0]):
@@ -268,18 +267,19 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                         example_prefix = sentence_tokens[:eos_loc]
                         example_prefix.extend(example_sep_ids)
 
+                        expansion_generation_args = generation_args.copy()
+                        expansion_generation_args.update(expansion_generation_overrides)
+                        
                         more_words, _ = cls.generate_words(
                             tokenizer,
                             model,
-                            num=num_expansion_candidates,
-                            batch_size=num_expansion_candidates,
-                            prefix=example_prefix,
                             max_iterations=1,
-                            max_length=max_length,
-                            top_k=top_k,
+                            num=num_expansion_candidates,
+                            prefix=example_prefix,      
                             blacklist=blacklist,
                             do_example_expansion=False,
                             filter_proper_nouns=filter_proper_nouns,
+                            generation_args=expansion_generation_args,
                         )
                         # TODO: Do I really want to prefer longer examples?
                         more_words.sort(key=lambda x: len(x.example), reverse=True)
