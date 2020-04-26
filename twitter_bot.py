@@ -17,10 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class WordGenerator:
-    def __init__(self, device=None):
-        parsed_dictionary_path = "data/en_dictionary_parsed_randomized.pickle"
-        model_path = "models/en_dictionary_parsed_lr_00001/checkpoint-120000"
-
+    def __init__(self, model_path, device=None):
         if not device:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
@@ -28,6 +25,8 @@ class WordGenerator:
 
         logger.info(f"Using device {self.device}")
 
+        """
+        parsed_dictionary_path = "data/en_dictionary_parsed_randomized.pickle"
         logger.info(f"Loading word blacklist from {parsed_dictionary_path}...")
         self.blacklist = set(
             (
@@ -39,6 +38,7 @@ class WordGenerator:
             )
         )
         logger.info(f"Loaded {len(self.blacklist)} words to blacklist")
+        """
 
         logger.info("Loading GPT2 tokenizer...")
         self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
@@ -214,7 +214,7 @@ def main(args):
     auth = tweepy.OAuthHandler(api_key, api_secret)
     auth.set_access_token(access_token, access_secret)
     api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True,)
-    word_generator = WordGenerator(device=args.device)
+    word_generator = WordGenerator(device=args.device, model_path=args.model_path)
     bot_loop(bot_state, api, word_generator)
 
 
@@ -232,6 +232,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--device", help="Force a certain device (cuda / cpu)", type=str,
+    )
+    parser.add_argument(
+        "--model-path", help="Model path for word generation", type=str, required=True
     )
     parser.add_argument("--log-file", type=str, help="Log to this file")
     args = parser.parse_args()
