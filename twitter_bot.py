@@ -15,9 +15,28 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+MAX_TWEET_LENGTH = 250
+
+
+@dataclass
+class BotState:
+    path: str
+    last_processed_id: Optional[int] = None
+
+    @classmethod
+    def read_from(cls, path):
+        with open(path) as f:
+            j = json.load(f)
+
+        return cls(last_processed_id=j["last_processed_id"], path=path,)
+
+    def write(self):
+        with open(self.path, "w") as f:
+            json.dump({"last_processed_id": self.last_processed_id}, f)
+
 
 class WordGenerator:
-    def __init__(self, model_path, device=None):
+    def __init__(self, model_path, blacklist_path, device=None):
         if not device:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
@@ -25,20 +44,17 @@ class WordGenerator:
 
         logger.info(f"Using device {self.device}")
 
-        """
-        parsed_dictionary_path = "data/en_dictionary_parsed_randomized.pickle"
-        logger.info(f"Loading word blacklist from {parsed_dictionary_path}...")
+        logger.info(f"Loading word blacklist from {blacklist_path}...")
         self.blacklist = set(
             (
                 x.lower()
                 for x in itertools.chain.from_iterable(
                     [e.word] + e.derivatives
-                    for e in pickle.load(open(parsed_dictionary_path, "rb"))
+                    for e in pickle.load(open(blacklist_path, "rb"))
                 )
             )
         )
         logger.info(f"Loaded {len(self.blacklist)} words to blacklist")
-        """
 
         logger.info("Loading GPT2 tokenizer...")
         self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
@@ -48,6 +64,30 @@ class WordGenerator:
         logger.info(f"Loading model from {model_path}")
         self.model = AutoModelWithLMHead.from_pretrained(model_path).to(self.device)
         logger.info("Loaded model")
+
+    def generate_word(self, max_length=256):
+        expanded, _ = datasets.ParsedDictionaryDefinitionDataset.generate_words(
+            self.tokenizer,
+            self.model,
+            num=1,
+            max_iterations=5,
+            blacklist=self.blacklist,
+            do_example_expansion=True,
+            generation_args=dict(
+                top_k=300,
+                num_return_sequences=10,
+                max_length=max_length,
+                do_sample=True,
+            ),
+            expansion_generation_overrides=dict(
+                top_k=50, num_return_sequences=20, do_sample=True,
+            ),
+            num_expansion_candidates=20,
+            filter_proper_nouns=True,
+            device=self.device,
+        )
+
+        return expanded[0] if expanded else None
 
     def generate_definition(self, word, max_length=256):
         prefix = (
@@ -61,13 +101,10 @@ class WordGenerator:
             max_iterations=1,
             do_example_expansion=True,
             generation_args=dict(
-                top_k=300,
-                num_return_sequences=5,
-                max_length=max_length,
-                do_sample=True,
+                top_k=75, num_return_sequences=5, max_length=max_length, do_sample=True,
             ),
             expansion_generation_overrides=dict(
-                top_k=50, num_return_sequences=10, do_sample=True,
+                top_k=75, num_return_sequences=10, do_sample=True,
             ),
             num_expansion_candidates=10,
             filter_proper_nouns=True,
@@ -78,6 +115,19 @@ class WordGenerator:
             return expanded[0]
         else:
             return None
+
+
+def _definition_str(word_with_definition):
+    word_view_str = [word_with_definition.word]
+    if word_with_definition.pos:
+        word_view_str.append(f"/{word_with_definition.pos}/")
+
+    if word_with_definition.topic:
+        word_view_str.append(f"[{word_with_definition.topic}]")
+
+    word_view_str.append(f"\n{word_with_definition.definition}")
+    word_view_str.append(f'\n"{word_with_definition.example}"')
+    return " ".join(word_view_str)
 
 
 def _formulate_reply_text(word_generator, text, author_name, max_defn_length=40):
@@ -111,43 +161,31 @@ def _formulate_reply_text(word_generator, text, author_name, max_defn_length=40)
     if not word_with_definition:
         return "Something went wrong on my end, sorry \U0001F61E\U0001F61E\U0001F61E"
 
-    word_view_str = [word_with_definition.word]
-    if word_with_definition.pos:
-        word_view_str.append(f"/{word_with_definition.pos}/")
-
-    if word_with_definition.topic:
-        word_view_str.append(f"[{word_with_definition.topic}]")
-
-    word_view_str.append(f"\n{word_with_definition.definition}")
-    word_view_str.append(f'\n"{word_with_definition.example}"')
-
+    word_view_str = _definition_str(word_with_definition)
     if warning:
-        reply = f"@{author_name} {warning} {' '.join(word_view_str)}"
+        reply = f"@{author_name} {warning} {word_view_str}"
     else:
-        reply = f"@{author_name} {' '.join(word_view_str)}"
+        reply = f"@{author_name} {word_view_str}"
 
     return reply
 
 
-@dataclass
-class BotState:
-    path: str
-    last_processed_id: Optional[int] = None
+def _formulate_wotd_text(word_with_definition):
+    prefix = "Fake word of the day:"
+    word_view_str = _definition_str(word_with_definition)
+    return f"{prefix} {word_view_str}"
 
-    @classmethod
-    def read_from(cls, path):
-        with open(path) as f:
-            j = json.load(f)
 
-        return cls(last_processed_id=j["last_processed_id"], path=path,)
+def tweet_wotd(api, word_generator):
+    word = word_generator.generate_word()
+    if not word:
+        raise RuntimeError("Error during generation")
 
-    def write(self):
-        with open(self.path, "w") as f:
-            json.dump({"last_processed_id": self.last_processed_id}, f)
+    wotd_text = _formulate_wotd_text(word)
+    api.update_status(wotd_text)
 
 
 def bot_loop(bot_state, api, word_generator):
-    max_length = 260
     while True:
         cur = tweepy.Cursor(
             api.mentions_timeline, since_id=bot_state.last_processed_id, count=50
@@ -161,11 +199,11 @@ def bot_loop(bot_state, api, word_generator):
             reply = _formulate_reply_text(
                 word_generator, status.text, status.author.screen_name
             )
-            if len(reply) > max_length:
+            if len(reply) > MAX_TWEET_LENGTH:
                 logging.warning(
                     f"Reply to {status.id} (@{status.author.screen_name}) too long... truncating: {reply}"
                 )
-                reply = reply[:max_length]
+                reply = reply[:MAX_TWEET_LENGTH]
             api.update_status(reply, in_reply_to_status_id=status.id)
             bot_state.last_processed_id = status.id
             bot_state.write()
@@ -199,25 +237,36 @@ def main(args):
     else:
         logging.basicConfig(level=logging.INFO)
 
-    state_exists = os.path.exists(args.state_file)
-    if not state_exists and not args.bootstrap:
-        raise RuntimeError(
-            f"Missing state file at {args.state_file}... did you mean to bootstrap?"
-        )
-    elif state_exists and args.bootstrap:
-        raise RuntimeError(
-            f"Bootstrap specified and state file exists at {args.state_file}"
-        )
-    elif args.bootstrap:
-        bot_state = BotState(path=args.state_file)
-    else:
-        bot_state = BotState.read_from(args.state_file)
-
     auth = tweepy.OAuthHandler(api_key, api_secret)
     auth.set_access_token(access_token, access_secret)
     api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True,)
-    word_generator = WordGenerator(device=args.device, model_path=args.model_path)
-    bot_loop(bot_state, api, word_generator)
+    word_generator = WordGenerator(
+        device=args.device,
+        model_path=args.model_path,
+        blacklist_path=args.blacklist_path,
+    )
+
+    if args.wotd_mode:
+        tweet_wotd(api, word_generator)
+    else:
+        if not args.state_file:
+            raise RuntimeError("State mode must be specified")
+
+        state_exists = os.path.exists(args.state_file)
+        if not state_exists and not args.bootstrap:
+            raise RuntimeError(
+                f"Missing state file at {args.state_file}... did you mean to bootstrap?"
+            )
+        elif state_exists and args.bootstrap:
+            raise RuntimeError(
+                f"Bootstrap specified and state file exists at {args.state_file}"
+            )
+        elif args.bootstrap:
+            bot_state = BotState(path=args.state_file)
+        else:
+            bot_state = BotState.read_from(args.state_file)
+
+        bot_loop(bot_state, api, word_generator)
 
 
 if __name__ == "__main__":
@@ -229,15 +278,27 @@ if __name__ == "__main__":
         help="Whether to create the state file, otherwise it is required",
         action="store_true",
     )
-    parser.add_argument(
-        "--state-file", type=str, required=True, help="Path to the state file"
-    )
+    parser.add_argument("--state-file", type=str, help="Path to the state file")
     parser.add_argument(
         "--device", help="Force a certain device (cuda / cpu)", type=str,
     )
     parser.add_argument(
         "--model-path", help="Model path for word generation", type=str, required=True
     )
+    parser.add_argument(
+        "--blacklist-path",
+        help="Blacklist path for word generation",
+        type=str,
+        required=True,
+    )
     parser.add_argument("--log-file", type=str, help="Log to this file")
+    parser.add_argument(
+        "--wotd-mode", action="store_true", help="Tweet a word of the day and quit"
+    )
     args = parser.parse_args()
-    main(args)
+
+    try:
+        main(args)
+    except Exception:
+        logger.exception("Uncaught error")
+        raise
