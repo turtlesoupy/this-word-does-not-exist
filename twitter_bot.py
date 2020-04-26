@@ -104,7 +104,9 @@ def _formulate_reply_text(word_generator, text, author_name, max_defn_length=40)
     else:
         word = remove_word_define
 
+    start_time = time.time()
     word_with_definition = word_generator.generate_definition(word)
+    logging.info(f"Word generation took {time.time() - start_time:.2f}s")
 
     if not word_with_definition:
         return "Something went wrong on my end, sorry \U0001F61E\U0001F61E\U0001F61E"
