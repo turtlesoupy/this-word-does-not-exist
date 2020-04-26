@@ -315,6 +315,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                             do_example_expansion=False,
                             filter_proper_nouns=filter_proper_nouns,
                             generation_args=expansion_generation_args,
+                            device=device,
                         )
                         # TODO: Do I really want to prefer longer examples?
                         more_words.sort(key=lambda x: len(x.example), reverse=True)

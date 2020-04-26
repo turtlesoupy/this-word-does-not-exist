@@ -17,11 +17,15 @@ logger = logging.getLogger(__name__)
 
 
 class WordGenerator:
-    def __init__(self):
+    def __init__(self, device=None):
         parsed_dictionary_path = "data/en_dictionary_parsed_randomized.pickle"
         model_path = "models/en_dictionary_parsed_lr_00001/checkpoint-120000"
 
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        if not device:
+            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = torch.device(device)
+
         logger.info(f"Using device {self.device}")
 
         logger.info(f"Loading word blacklist from {parsed_dictionary_path}...")
@@ -67,6 +71,7 @@ class WordGenerator:
             ),
             num_expansion_candidates=10,
             filter_proper_nouns=True,
+            device=self.device,
         )
 
         if expanded:
@@ -181,6 +186,17 @@ def main(args):
     if not access_secret:
         raise RuntimeError("Missing TWITTER_ACCESS_SECRET environment variable")
 
+    if args.log_file:
+        print(f"Logging to {args.log_file}")
+        logging.basicConfig(
+            level=logging.INFO,
+            filename=args.log_file,
+            filemode="a",
+            format="%(asctime)s - %(levelname)s - %(message)s",
+        )
+    else:
+        logging.basicConfig(level=logging.INFO)
+
     state_exists = os.path.exists(args.state_file)
     if not state_exists and not args.bootstrap:
         raise RuntimeError(
@@ -198,7 +214,7 @@ def main(args):
     auth = tweepy.OAuthHandler(api_key, api_secret)
     auth.set_access_token(access_token, access_secret)
     api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True,)
-    word_generator = WordGenerator()
+    word_generator = WordGenerator(device=args.device)
     bot_loop(bot_state, api, word_generator)
 
 
@@ -214,7 +230,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--state-file", type=str, required=True, help="Path to the state file"
     )
+    parser.add_argument(
+        "--device", help="Force a certain device (cuda / cpu)", type=str,
+    )
+    parser.add_argument("--log-file", type=str, help="Log to this file")
     args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO)
     main(args)
