@@ -247,7 +247,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                 input,
                 pad_token_id=tokenizer.pad_token_id,
                 bos_token_id=tokenizer.bos_token_id,
-                eos_token_ids=tokenizer.eos_token_id,
+                eos_token_id=tokenizer.eos_token_id,
                 **generation_args,
             )
 

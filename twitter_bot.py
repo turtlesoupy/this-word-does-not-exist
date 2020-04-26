@@ -62,7 +62,7 @@ class WordGenerator:
             do_example_expansion=True,
             generation_args=dict(
                 top_k=300,
-                num_return_sequences=3,
+                num_return_sequences=5,
                 max_length=max_length,
                 do_sample=True,
             ),
