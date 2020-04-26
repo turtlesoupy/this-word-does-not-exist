@@ -102,7 +102,9 @@ def get_with_retries(session, url, timeout=20.0):
     ret = session.get(url, timeout=timeout)
 
     if ret.status_code != 200:
-        raise StatusError(ret.status_code, f"Unexpected status code in {url}: {ret.status_code}")
+        raise StatusError(
+            ret.status_code, f"Unexpected status code in {url}: {ret.status_code}"
+        )
 
     return ret
 
@@ -126,13 +128,20 @@ def fetch_letter_page(session, letter, page=1):
             raise RuntimeError(f"Unable to parse num pages from {last_string} in {url}")
         num_pages = int(pages_match.group(1))
 
-    definitions = parsed_page.body.find_all("a", href=re.compile(".*define.php.*"), class_=None)
+    definitions = parsed_page.body.find_all(
+        "a", href=re.compile(".*define.php.*"), class_=None
+    )
     if not definitions:
         raise RuntimeError(f"No definitions found for crawl of {url}!")
 
-    definition_urls = [UrbanDictionaryWordURL(title=d.text, url=f"{UD_ROOT}{d['href']}") for d in definitions]
+    definition_urls = [
+        UrbanDictionaryWordURL(title=d.text, url=f"{UD_ROOT}{d['href']}")
+        for d in definitions
+    ]
 
-    return UrbanDictionaryIndexPage(url=url, definition_urls=definition_urls, num_pages=num_pages)
+    return UrbanDictionaryIndexPage(
+        url=url, definition_urls=definition_urls, num_pages=num_pages
+    )
 
 
 def fetch_all_letter_word_url(session, letter, limit=None):
@@ -176,7 +185,10 @@ def _parse_definition_div(definition_div, url=None):
     word_title = word_a.text.strip()
 
     autolink_as = definition_div.find_all("a", class_="autolink")
-    outbound_links = [UrbanDictionaryWordURL(url=f'{UD_ROOT}{a["href"]}', title=a.text.strip()) for a in autolink_as]
+    outbound_links = [
+        UrbanDictionaryWordURL(url=f'{UD_ROOT}{a["href"]}', title=a.text.strip())
+        for a in autolink_as
+    ]
 
     meaning_divs = definition_div.find_all("div", class_="meaning")
     if len(meaning_divs) > 1:
@@ -203,12 +215,18 @@ def _parse_definition_div(definition_div, url=None):
 
     example_divs = definition_div.find_all("div", class_="example")
     examples = [
-        BeautifulSoup(re.sub("<br\s*?/?>", "\n", str(e)), "html.parser").get_text().replace("\r", "")
+        BeautifulSoup(re.sub("<br\s*?/?>", "\n", str(e)), "html.parser")
+        .get_text()
+        .replace("\r", "")
         for e in example_divs
     ]
 
-    upvotes = int(definition_div.find("a", class_="up").find("span", class_="count").text)
-    downvotes = int(definition_div.find("a", class_="down").find("span", class_="count").text)
+    upvotes = int(
+        definition_div.find("a", class_="up").find("span", class_="count").text
+    )
+    downvotes = int(
+        definition_div.find("a", class_="down").find("span", class_="count").text
+    )
 
     return UrbanDictionaryDefinition(
         word=word_title,
@@ -237,7 +255,9 @@ def fetch_word(session, url):
     if len(definitions) == 0:
         raise RuntimeError(f"No definitions found for {url}")
 
-    word = UrbanDictionaryWord(title=definitions[0].word, url=url, definitions=definitions)
+    word = UrbanDictionaryWord(
+        title=definitions[0].word, url=url, definitions=definitions
+    )
     return word
 
 
@@ -250,7 +270,12 @@ def _fetch_word_lambda(session, word_url):
 
 
 def fetch_all_definitions(
-    session, to_fetch, already_done=None, save_interval=1000, save_path="all_words.pickle", executor=None
+    session,
+    to_fetch,
+    already_done=None,
+    save_interval=1000,
+    save_path="all_words.pickle",
+    executor=None,
 ):
     already_done = already_done if already_done is not None else OrderedDict()
     fetch_list = list(to_fetch.values())
@@ -258,11 +283,15 @@ def fetch_all_definitions(
     pbar.update(len(already_done))
 
     mapper = executor.imap_unordered if executor else map
-    for i, (word_url, word) in enumerate(mapper(partial(_fetch_word_lambda, session), fetch_list)):
+    for i, (word_url, word) in enumerate(
+        mapper(partial(_fetch_word_lambda, session), fetch_list)
+    ):
         if word_url is None:
             logging.warning(f"Skipping due to upstream exception")
         elif word_url.title not in already_done and word_url.title not in to_fetch:
-            logging.error(f"Warning: {word_url.title} from {word_url.url} missing from fetch / done list")
+            logging.error(
+                f"Warning: {word_url.title} from {word_url.url} missing from fetch / done list"
+            )
         else:
             already_done[word_url.title] = word
             del to_fetch[word_url.title]
@@ -282,7 +311,16 @@ class GeneratedWord:
     example: str
 
 
-def generate_words(tokenizer, model, num=100, max_iterations=10, batch_size=50, max_length=512, top_k=50, blacklist=()):
+def generate_words(
+    tokenizer,
+    model,
+    num=100,
+    max_iterations=10,
+    batch_size=50,
+    max_length=512,
+    top_k=50,
+    blacklist=(),
+):
     blacklist = set(e.lower() for e in blacklist)
     ret = []
     num_iteration = 0

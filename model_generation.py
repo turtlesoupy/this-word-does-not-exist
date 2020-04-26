@@ -116,7 +116,12 @@ for i in range(steps):
     )
 
     conv_1D_bias = model.h[i].attn.c_attn.bias.data.numpy().reshape((1, 1, 2304, 1, 1))
-    conv_1D_weights = model.h[i].attn.c_attn.weight.data.numpy().transpose().reshape((1, 768, 2304, 1, 1))
+    conv_1D_weights = (
+        model.h[i]
+        .attn.c_attn.weight.data.numpy()
+        .transpose()
+        .reshape((1, 768, 2304, 1, 1))
+    )
 
     builder.add_inner_product(
         name=f"{i}_block_attn_conv",
@@ -179,7 +184,10 @@ for i in range(steps):
 
     builder.add_batched_mat_mul(
         name=f"{i}_block_attn_qv_matmul",
-        input_names=[f"{i}_block_attn_q_reshape_permuted", f"{i}_block_attn_k_reshape_permuted"],
+        input_names=[
+            f"{i}_block_attn_q_reshape_permuted",
+            f"{i}_block_attn_k_reshape_permuted",
+        ],
         output_name=f"{i}_block_attn_qv_matmul",
     )
 
@@ -218,15 +226,23 @@ for i in range(steps):
     )
 
     builder.add_squeeze(
-        name=f"{i}_squeezit", input_name=f"{i}_block_attn_afterbias", output_name=f"{i}_squeezit", axes=[0, 1]
+        name=f"{i}_squeezit",
+        input_name=f"{i}_block_attn_afterbias",
+        output_name=f"{i}_squeezit",
+        axes=[0, 1],
     )
 
     builder.add_softmax(
-        name=f"{i}_block_attn_softmax", input_name=f"{i}_squeezit", output_name=f"{i}_block_attn_softmax",
+        name=f"{i}_block_attn_softmax",
+        input_name=f"{i}_squeezit",
+        output_name=f"{i}_block_attn_softmax",
     )
 
     builder.add_expand_dims(
-        name=f"{i}_expandit", input_name=f"{i}_block_attn_softmax", output_name=f"{i}_expandit", axes=[0, 1]
+        name=f"{i}_expandit",
+        input_name=f"{i}_block_attn_softmax",
+        output_name=f"{i}_expandit",
+        axes=[0, 1],
     )
 
     builder.add_batched_mat_mul(
@@ -256,8 +272,15 @@ for i in range(steps):
         axes=[0, 3, 4, 1, 2],
     )
 
-    conv_1D_proj_bias = model.h[i].attn.c_proj.bias.data.numpy().reshape((1, 1, 768, 1, 1))
-    conv_1D_proj_weights = model.h[i].attn.c_proj.weight.data.numpy().transpose().reshape((1, 768, 768, 1, 1))
+    conv_1D_proj_bias = (
+        model.h[i].attn.c_proj.bias.data.numpy().reshape((1, 1, 768, 1, 1))
+    )
+    conv_1D_proj_weights = (
+        model.h[i]
+        .attn.c_proj.weight.data.numpy()
+        .transpose()
+        .reshape((1, 768, 768, 1, 1))
+    )
 
     # Input:, Output: (1, 3, 768, 1, 1)
     builder.add_inner_product(
@@ -313,8 +336,15 @@ for i in range(steps):
         shape_bias=[768],
     )
 
-    mlp_conv_1D_fc_bias = model.h[i].mlp.c_fc.bias.data.numpy().reshape((1, 1, 3072, 1, 1))
-    mlp_conv_1D_fc_weights = model.h[i].mlp.c_fc.weight.data.numpy().transpose().reshape((1, 768, 3072, 1, 1))
+    mlp_conv_1D_fc_bias = (
+        model.h[i].mlp.c_fc.bias.data.numpy().reshape((1, 1, 3072, 1, 1))
+    )
+    mlp_conv_1D_fc_weights = (
+        model.h[i]
+        .mlp.c_fc.weight.data.numpy()
+        .transpose()
+        .reshape((1, 768, 3072, 1, 1))
+    )
 
     # Input:, Output: (1, 3, 3072, 1, 1)
     builder.add_inner_product(
@@ -337,8 +367,15 @@ for i in range(steps):
         mode="TANH_APPROXIMATION",
     )
 
-    mlp_conv_1D_proj_bias = model.h[i].mlp.c_proj.bias.data.numpy().reshape((1, 1, 768, 1, 1))
-    mlp_conv_1D_proj_weights = model.h[i].mlp.c_proj.weight.data.numpy().transpose().reshape((1, 3072, 768, 1, 1))
+    mlp_conv_1D_proj_bias = (
+        model.h[i].mlp.c_proj.bias.data.numpy().reshape((1, 1, 768, 1, 1))
+    )
+    mlp_conv_1D_proj_weights = (
+        model.h[i]
+        .mlp.c_proj.weight.data.numpy()
+        .transpose()
+        .reshape((1, 3072, 768, 1, 1))
+    )
 
     # Input:, Output: (1, 3, 3072, 1, 1)
     builder.add_inner_product(
@@ -395,7 +432,9 @@ builder.add_scale(
     shape_bias=[768],
 )
 
-lm_head_weights = lm_head_model.lm_head.weight.data.numpy().reshape((1, num_tokens, 768, 1, 1))
+lm_head_weights = lm_head_model.lm_head.weight.data.numpy().reshape(
+    (1, num_tokens, 768, 1, 1)
+)
 
 builder.add_inner_product(
     name="lm_head",
