@@ -1,0 +1,27 @@
+name: company_makeup
+channels:
+  - stanfordnlp
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - beautifulsoup4>=4.8.2
+  - black>=19.10b0
+  - cudatoolkit>=10.1.243
+  - cudnn>=7.6.5
+  - jupyter_client>=6.1.2
+  - jupyter_core>=4.6.3
+  - numpy>=1.18.1
+  - pandas>=1.0.2
+  - pip>=20.0.2
+  - pytorch>=1.4.0
+  - requests-cache>=0.5.0
+  - retry>=0.9.2
+  - stanza>=1.0.0
+  - tensorboard>=2.1.0
+  - torchvision>=0.2.1
+  - tqdm>=4.43.0
+  - tweepy>=3.8.0
+  - pip:
+    - transformers>=2.8.0
+
