@@ -343,13 +343,15 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                             generation_args=expansion_generation_args,
                             device=device,
                             example_match_pos_pipeline=example_match_pos_pipeline,
+                            dedupe_titles=False,
                         )
-                        # TODO: Do I really want to prefer longer examples?
                         more_words.sort(key=lambda x: len(x.example), reverse=True)
                         if more_words:
+                            # TODO: Do I really want to prefer longer examples?
+                            w = more_words[len(more_words) // 2]
                             stats.num_example_expansions_successful += 1
-                            more_words[0].from_example_expansion = True
-                            ret.append(more_words[0])
+                            w.from_example_expansion = True
+                            ret.append(w)
                             seen_titles.add(title.strip().lower())
                     else:
                         stats.num_example_filtered += 1
