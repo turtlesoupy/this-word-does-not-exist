@@ -12,6 +12,7 @@ import logging
 from transformers import AutoModelWithLMHead, AutoTokenizer
 from dataclasses import dataclass
 from typing import Optional
+import stanza
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,8 @@ class WordGenerator:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
             self.device = torch.device(device)
+
+        self.stanza_pos_pipeline = stanza.Pipeline(lang='en', processors='tokenize,mwt,pos')
 
         logger.info(f"Using device {self.device}")
 
@@ -83,8 +86,8 @@ class WordGenerator:
                 top_k=50, num_return_sequences=20, do_sample=True,
             ),
             num_expansion_candidates=20,
-            filter_proper_nouns=True,
             device=self.device,
+            example_match_pos_pipeline=self.stanza_pos_pipeline,
         )
 
         return expanded[0] if expanded else None
@@ -104,11 +107,11 @@ class WordGenerator:
                 top_k=75, num_return_sequences=5, max_length=max_length, do_sample=True,
             ),
             expansion_generation_overrides=dict(
-                top_k=75, num_return_sequences=10, do_sample=True,
+                top_k=50, num_return_sequences=10, do_sample=True,
             ),
             num_expansion_candidates=10,
-            filter_proper_nouns=True,
             device=self.device,
+            example_match_pos_pipeline=self.stanza_pos_pipeline,
         )
 
         if expanded:
@@ -212,6 +215,8 @@ def bot_loop(bot_state, api, word_generator):
 
 
 def main(args):
+    stanza.download('en')
+
     api_key = os.environ.get("TWITTER_API_KEY")
     api_secret = os.environ.get("TWITTER_API_SECRET")
     access_token = os.environ.get("TWITTER_ACCESS_TOKEN")

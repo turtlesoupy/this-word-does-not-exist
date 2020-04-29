@@ -22,6 +22,7 @@ oed_to_upos = {
     "exclamation": ("NOUN", "PROPN", "VERB", "NUM", "SYM", "X"),
     "abbreviation": ("X", "NOUN", "PROPN", "NUM", "SYM"),
     "noun": ("NOUN", "PROPN"),
+    "adjective adverb": ("ADJ", "ADVERB"),
     "adjective": ("ADJ",),
     "verb": ("VERB"),
     "adverb": ("ADVERB"),
