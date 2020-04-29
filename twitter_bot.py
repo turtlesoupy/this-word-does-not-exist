@@ -9,6 +9,7 @@ import pickle
 import itertools
 import datasets
 import logging
+import stanza 
 from transformers import AutoModelWithLMHead, AutoTokenizer
 from dataclasses import dataclass
 from typing import Optional
@@ -37,8 +38,6 @@ class BotState:
 
 class WordGenerator:
     def __init__(self, model_path, blacklist_path, device=None):
-        import stanza # Workaround stanza bug that steals logger
-
         if not device:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
@@ -230,6 +229,12 @@ def main(args):
     if not access_secret:
         raise RuntimeError("Missing TWITTER_ACCESS_SECRET environment variable")
 
+    stanza.download('en')
+
+    # Remove all handlers associated with the root logger object.
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
     if args.log_file:
         print(f"Logging to {args.log_file}")
         logging.basicConfig(
@@ -241,8 +246,6 @@ def main(args):
     else:
         logging.basicConfig(level=logging.INFO)
 
-    import stanza # Workaround stanza bug that steals logger
-    stanza.download('en')
 
     auth = tweepy.OAuthHandler(api_key, api_secret)
     auth.set_access_token(access_token, access_secret)
