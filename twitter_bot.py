@@ -12,7 +12,6 @@ import logging
 from transformers import AutoModelWithLMHead, AutoTokenizer
 from dataclasses import dataclass
 from typing import Optional
-import stanza
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +37,8 @@ class BotState:
 
 class WordGenerator:
     def __init__(self, model_path, blacklist_path, device=None):
+        import stanza # Workaround stanza bug that steals logger
+
         if not device:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
@@ -215,8 +216,6 @@ def bot_loop(bot_state, api, word_generator):
 
 
 def main(args):
-    stanza.download('en')
-
     api_key = os.environ.get("TWITTER_API_KEY")
     api_secret = os.environ.get("TWITTER_API_SECRET")
     access_token = os.environ.get("TWITTER_ACCESS_TOKEN")
@@ -241,6 +240,9 @@ def main(args):
         )
     else:
         logging.basicConfig(level=logging.INFO)
+
+    import stanza # Workaround stanza bug that steals logger
+    stanza.download('en')
 
     auth = tweepy.OAuthHandler(api_key, api_secret)
     auth.set_access_token(access_token, access_secret)
