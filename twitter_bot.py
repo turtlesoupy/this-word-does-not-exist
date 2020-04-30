@@ -93,7 +93,7 @@ class WordGenerator:
 
     def generate_definition(self, word, user_filter=None):
         prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{word}{datasets.SpecialTokens.POS_SEP}"
-        expanded, _ = datasets.ParsedDictionaryDefinitionDataset.generate_words(
+        expanded, stats = datasets.ParsedDictionaryDefinitionDataset.generate_words(
             self.tokenizer,
             self.model,
             num=1,
@@ -101,13 +101,16 @@ class WordGenerator:
             max_iterations=1,
             do_example_expansion=True,
             generation_args=dict(top_k=75, num_return_sequences=5, max_length=self.approx_max_length, do_sample=True,),
-            expansion_generation_overrides=dict(top_k=50, num_return_sequences=10, do_sample=True,),
-            num_expansion_candidates=10,
+            expansion_generation_overrides=dict(top_k=50, num_return_sequences=20, do_sample=True,),
+            num_expansion_candidates=20,
             device=self.device,
             example_match_pos_pipeline=self.stanza_pos_pipeline,
             dedupe_titles=False,
             user_filter=user_filter,
+            hail_mary_example=True,
         )
+
+        logger.debug(stats)
 
         if expanded:
             return expanded[0]
@@ -132,6 +135,8 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
     removed_mentions = re.sub(r"(@[\S]*)", "", text).strip()
     remove_word_define = re.sub(r"^(define |defn )", "", removed_mentions, flags=re.IGNORECASE).strip()
 
+    print(remove_word_define)
+
     warning = None
     if len(remove_word_define) > 40:
         splits = remove_word_define.split()
@@ -152,11 +157,11 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
         if warning:
             return f"@{author_name} {warning} {word_view_str}"
         else:
-            return f"@{author_name} \U0001F446 {word_view_str}"
+            return f"@{author_name} \U0001F449 {word_view_str}"
 
     start_time = time.time()
     word_with_definition = word_generator.generate_definition(word, user_filter=lambda w: len(final_text(w)) < 250,)
-    logging.info(f"Word generation took {time.time() - start_time:.2f}s")
+    logger.info(f"Word generation took {time.time() - start_time:.2f}s")
 
     if not word_with_definition:
         return f"@{author_name} something went wrong on my end, sorry \U0001F61E\U0001F61E\U0001F61E"
@@ -170,7 +175,7 @@ def _formulate_wotd_text(word_with_definition, emoji):
     return f"{prefix} {word_view_str}"
 
 
-def tweet_wotd(api, word_generator):
+def tweet_wotd(me, api, word_generator):
     emoji = random.choice(
         (
             "\U0001F970",
@@ -206,26 +211,43 @@ def tweet_wotd(api, word_generator):
 
     wotd_text = _formulate_wotd_text(word, emoji)
     api.update_status(wotd_text)
+    logger.info(f"Tweeted {wotd_text}")
 
 
-def bot_loop(bot_state, api, word_generator):
+def bot_loop(bot_state, me, api, word_generator):
+    fetch_count = 200
     while True:
-        cur = tweepy.Cursor(api.mentions_timeline, since_id=bot_state.last_processed_id, count=50)
-        items = list(reversed(list(cur.items())))
+        logger.debug("Querying...")
+        items = list(
+            reversed(api.mentions_timeline(since_id=bot_state.last_processed_id, count=fetch_count, include_rts=0))
+        )
 
-        if len(items) > 0:
-            logging.info(f"Found {len(items)} items to reply to!")
+        logger.debug(f"Starting {len(items)} items to reply to!")
+        items = [e for e in items if e.in_reply_to_user_id != me.id or e.in_reply_to_status_id is None]
+        logger.debug(f"Found {len(items)} items to reply to!")
+
+        if len(items) == fetch_count:
+            # If we are at capacity, heuristically dedupe to one per author
+            new_items = []
+            seen_users = set()
+            for item in items:
+                if item.author.id in seen_users:
+                    continue
+                new_items.append(item)
+                seen_users.add(item.author_id)
+            items = new_items
 
         for status in items:
+            logger.debug(f"STATUS: {status.text}")
             reply = _formulate_reply_text(word_generator, status.text, status.author.screen_name)
             if len(reply) > MAX_TWEET_LENGTH:
-                logging.warning(f"Reply to {status.id} (@{status.author.screen_name}) too long... truncating: {reply}")
+                logger.warning(f"Reply to {status.id} (@{status.author.screen_name}) too long... truncating: {reply}")
                 reply = reply[:MAX_TWEET_LENGTH]
             api.update_status(reply, in_reply_to_status_id=status.id)
             bot_state.last_processed_id = status.id
             bot_state.write()
 
-        time.sleep(10)
+        time.sleep(15)
 
 
 def main(args):
@@ -249,24 +271,32 @@ def main(args):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
 
+    lvl = logging.DEBUG if args.verbose else logging.INFO
     if args.log_file:
         print(f"Logging to {args.log_file}")
         logging.basicConfig(
-            level=logging.INFO,
-            filename=args.log_file,
-            filemode="a",
-            format="%(asctime)s - %(levelname)s - %(message)s",
+            level=lvl, filename=args.log_file, filemode="a", format="%(asctime)s - %(levelname)s - %(message)s",
         )
     else:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=lvl)
 
     auth = tweepy.OAuthHandler(api_key, api_secret)
     auth.set_access_token(access_token, access_secret)
-    api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True,)
+    api = tweepy.API(
+        auth,
+        wait_on_rate_limit=True,
+        wait_on_rate_limit_notify=True,
+        retry_count=5,
+        retry_delay=30,
+        retry_errors=set([500, 503]),
+    )
     word_generator = WordGenerator(device=args.device, model_path=args.model_path, blacklist_path=args.blacklist_path,)
 
+    me = api.me()
+
     if args.wotd_mode:
-        tweet_wotd(api, word_generator)
+        logger.info("Tweeting WOTD")
+        tweet_wotd(me, api, word_generator)
     else:
         if not args.state_file:
             raise RuntimeError("State mode must be specified")
@@ -281,7 +311,8 @@ def main(args):
         else:
             bot_state = BotState.read_from(args.state_file)
 
-        bot_loop(bot_state, api, word_generator)
+        logger.info("Entering bot loop")
+        bot_loop(bot_state, me, api, word_generator)
 
 
 if __name__ == "__main__":
@@ -299,6 +330,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--log-file", type=str, help="Log to this file")
     parser.add_argument("--wotd-mode", action="store_true", help="Tweet a word of the day and quit")
+    parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
 
     try:

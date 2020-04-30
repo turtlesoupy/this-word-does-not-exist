@@ -25,6 +25,7 @@ oed_to_upos = {
     "adverb": ("ADVERB"),
     "prefix": ("ADJ", "ADVERB"),
     "conjunction": ("AUX"),
+    "pronoun": ("INTJ", "NOUN"),
 }
 
 
@@ -160,6 +161,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
         num_example_expansions: int = 0
         num_example_expansions_successful: int = 0
+        num_example_expanson_hail_maries: int = 0
         num_user_filtered: int = 0
         num_returned: int = 0
 
@@ -175,6 +177,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     ("example_filtered", self.num_example_filtered),
                     ("example_expansions", self.num_example_expansions),
                     ("example_expansion_success", self.num_example_expansions_successful),
+                    ("example_expansion_hail_maries", self.num_example_expansions_hail_maries),
                     ("user_filtered", self.num_user_filtered),
                     ("returned", self.num_returned),
                 )
@@ -238,6 +241,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         example_match_pos_pipeline=None,
         dedupe_titles=True,
         device="cuda",
+        hail_mary_example=False,
         user_filter=None,
     ):
         ret = []
@@ -339,20 +343,29 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                         expansion_generation_args = generation_args.copy()
                         expansion_generation_args.update(expansion_generation_overrides)
 
-                        more_words, _ = cls.generate_words(
-                            tokenizer,
-                            model,
-                            max_iterations=1,
-                            num=num_expansion_candidates,
-                            prefix=example_prefix,
-                            blacklist=blacklist,
-                            do_example_expansion=False,
-                            generation_args=expansion_generation_args,
-                            device=device,
-                            example_match_pos_pipeline=example_match_pos_pipeline,
-                            dedupe_titles=False,
-                            user_filter=user_filter,
-                        )
+                        def do_expand_generate(prefix):
+                            words, _ = cls.generate_words(
+                                tokenizer,
+                                model,
+                                max_iterations=1,
+                                num=num_expansion_candidates,
+                                prefix=example_prefix,
+                                blacklist=blacklist,
+                                do_example_expansion=False,
+                                generation_args=expansion_generation_args,
+                                device=device,
+                                example_match_pos_pipeline=example_match_pos_pipeline,
+                                dedupe_titles=False,
+                                user_filter=user_filter,
+                                hail_mary_example=False,
+                            )
+                            return words
+
+                        more_words = do_expand_generate(example_prefix)
+                        if not more_words and hail_mary_example:
+                            more_words = do_expand_generate(example_prefix + tokenizer.encode(title))
+                            stats.num_example_expanson_hail_maries += 1
+
                         more_words.sort(key=lambda x: len(x.example), reverse=True)
 
                         if more_words:
