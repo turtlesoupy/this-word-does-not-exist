@@ -158,7 +158,7 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
     inverse_mode = False
     if len(remove_word_define.split()) >= 3:
         inverse_mode = True
-    if len(remove_word_define) > 40:
+    elif len(remove_word_define) > 40:
         splits = remove_word_define.split()
         if len(splits) > 0:
             word = splits[0]
