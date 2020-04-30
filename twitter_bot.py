@@ -38,25 +38,20 @@ class BotState:
 
 
 class WordGenerator:
-    def __init__(self, model_path, blacklist_path, device=None):
+    def __init__(self, forward_model_path, inverse_model_path, blacklist_path, device=None):
         if not device:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
             self.device = torch.device(device)
 
-        self.stanza_pos_pipeline = stanza.Pipeline(lang="en", processors="tokenize,mwt,pos")
+        self.stanza_pos_pipeline = stanza.Pipeline(
+            lang="en", processors="tokenize,mwt,pos", use_gpu=("cpu" not in self.device.type)
+        )
 
         logger.info(f"Using device {self.device}")
 
         logger.info(f"Loading word blacklist from {blacklist_path}...")
-        self.blacklist = set(
-            (
-                x.lower()
-                for x in itertools.chain.from_iterable(
-                    [e.word] + e.derivatives for e in pickle.load(open(blacklist_path, "rb"))
-                )
-            )
-        )
+        self.blacklist = datasets.Blacklist.load(blacklist_path)
         logger.info(f"Loaded {len(self.blacklist)} words to blacklist")
 
         logger.info("Loading GPT2 tokenizer...")
@@ -64,16 +59,20 @@ class WordGenerator:
         self.tokenizer.add_special_tokens(datasets.SpecialTokens.special_tokens_dict())
         logger.info("Loaded tokenizer")
 
-        logger.info(f"Loading model from {model_path}")
-        self.model = AutoModelWithLMHead.from_pretrained(model_path).to(self.device)
-        logger.info("Loaded model")
+        logger.info(f"Loading forward model from {forward_model_path}")
+        self.forward_model = AutoModelWithLMHead.from_pretrained(forward_model_path).to(self.device)
+        logger.info("Loaded forward model")
+
+        logger.info(f"Loading inverse model from {inverse_model_path}")
+        self.inverse_model = AutoModelWithLMHead.from_pretrained(inverse_model_path).to(self.device)
+        logger.info("Loaded inverse model")
 
         self.approx_max_length = 250
 
     def generate_word(self, user_filter=None):
         expanded, _ = datasets.ParsedDictionaryDefinitionDataset.generate_words(
             self.tokenizer,
-            self.model,
+            self.forward_model,
             num=1,
             max_iterations=5,
             blacklist=self.blacklist,
@@ -83,7 +82,6 @@ class WordGenerator:
             ),
             expansion_generation_overrides=dict(top_k=50, num_return_sequences=20, do_sample=True,),
             num_expansion_candidates=20,
-            device=self.device,
             example_match_pos_pipeline=self.stanza_pos_pipeline,
             user_filter=user_filter,
             dedupe_titles=True,
@@ -95,7 +93,7 @@ class WordGenerator:
         prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{word}{datasets.SpecialTokens.POS_SEP}"
         expanded, stats = datasets.ParsedDictionaryDefinitionDataset.generate_words(
             self.tokenizer,
-            self.model,
+            self.forward_model,
             num=1,
             prefix=prefix,
             max_iterations=1,
@@ -103,11 +101,31 @@ class WordGenerator:
             generation_args=dict(top_k=75, num_return_sequences=5, max_length=self.approx_max_length, do_sample=True,),
             expansion_generation_overrides=dict(top_k=50, num_return_sequences=20, do_sample=True,),
             num_expansion_candidates=20,
-            device=self.device,
             example_match_pos_pipeline=self.stanza_pos_pipeline,
             dedupe_titles=False,
             user_filter=user_filter,
             hail_mary_example=True,
+        )
+
+        logger.debug(stats)
+
+        if expanded:
+            return expanded[0]
+        else:
+            return None
+
+    def generate_word_from_definition(self, definition, user_filter=None):
+        prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{definition}{datasets.SpecialTokens.DEFINITION_SEP}"
+        expanded, stats = datasets.InverseParsedDictionaryDefinitionDataset.generate_words(
+            self.tokenizer,
+            self.inverse_model,
+            blacklist=self.blacklist,
+            num=1,
+            prefix=prefix,
+            max_iterations=1,
+            generation_args=dict(top_k=75, num_return_sequences=20, max_length=self.approx_max_length, do_sample=True,),
+            dedupe_titles=True,
+            user_filter=user_filter,
         )
 
         logger.debug(stats)
@@ -127,7 +145,8 @@ def _definition_str(word_with_definition):
         word_view_str.append(f"[{word_with_definition.topic}]")
 
     word_view_str.append(f"\n{word_with_definition.definition}")
-    word_view_str.append(f'\n"{word_with_definition.example}"')
+    if word_with_definition.example:
+        word_view_str.append(f'\n"{word_with_definition.example}"')
     return " ".join(word_view_str)
 
 
@@ -135,9 +154,10 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
     removed_mentions = re.sub(r"(@[\S]*)", "", text).strip()
     remove_word_define = re.sub(r"^(define |defn )", "", removed_mentions, flags=re.IGNORECASE).strip()
 
-    print(remove_word_define)
-
     warning = None
+    inverse_mode = False
+    if len(remove_word_define.split()) >= 3:
+        inverse_mode = True
     if len(remove_word_define) > 40:
         splits = remove_word_define.split()
         if len(splits) > 0:
@@ -160,8 +180,13 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
             return f"@{author_name} \U0001F449 {word_view_str}"
 
     start_time = time.time()
-    word_with_definition = word_generator.generate_definition(word, user_filter=lambda w: len(final_text(w)) < 250,)
-    logger.info(f"Word generation took {time.time() - start_time:.2f}s")
+    if inverse_mode:
+        word_with_definition = word_generator.generate_word_from_definition(
+            remove_word_define, user_filter=lambda w: len(final_text(w)) < 250,
+        )
+    else:
+        word_with_definition = word_generator.generate_definition(word, user_filter=lambda w: len(final_text(w)) < 250,)
+    logger.info(f"Word generation ({'inverse' if inverse_mode else 'forward'}) took {time.time() - start_time:.2f}s")
 
     if not word_with_definition:
         return f"@{author_name} something went wrong on my end, sorry \U0001F61E\U0001F61E\U0001F61E"
@@ -290,7 +315,12 @@ def main(args):
         retry_delay=30,
         retry_errors=set([500, 503]),
     )
-    word_generator = WordGenerator(device=args.device, model_path=args.model_path, blacklist_path=args.blacklist_path,)
+    word_generator = WordGenerator(
+        device=args.device,
+        forward_model_path=args.forward_model_path,
+        inverse_model_path=args.inverse_model_path,
+        blacklist_path=args.blacklist_path,
+    )
 
     me = api.me()
 
@@ -324,7 +354,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--device", help="Force a certain device (cuda / cpu)", type=str,
     )
-    parser.add_argument("--model-path", help="Model path for word generation", type=str, required=True)
+    parser.add_argument("--forward-model-path", help="Model path for (Word -> Definition)", type=str, required=True)
+    parser.add_argument("--inverse-model-path", help="Model path for (Definition -> Word)", type=str, required=True)
     parser.add_argument(
         "--blacklist-path", help="Blacklist path for word generation", type=str, required=True,
     )

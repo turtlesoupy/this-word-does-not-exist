@@ -201,6 +201,14 @@ def load_and_cache_examples(args, tokenizer, evaluate=False):
             splits=[float(e) for e in args.splits],
             split_idx=int(args.eval_split_idx if evaluate else args.train_split_idx),
         )
+    elif args.inverse_parsed_dictionary_dataset:
+        return datasets.InverseParsedDictionaryDefinitionDataset(
+            tokenizer,
+            args,
+            file_path=file_path,
+            splits=[float(e) for e in args.splits],
+            split_idx=int(args.eval_split_idx if evaluate else args.train_split_idx),
+        )
     else:
         return TextDataset(tokenizer, args, file_path=file_path, block_size=args.block_size)
 
@@ -612,6 +620,11 @@ def main():
         "--parsed_dictionary_dataset", action="store_true", help="Whether this is a parsed dictionary dataset",
     )
     parser.add_argument(
+        "--inverse_parsed_dictionary_dataset",
+        action="store_true",
+        help="Whether this is a inverse parsed dictionary dataset",
+    )
+    parser.add_argument(
         "--urban_dictionary_dataset", action="store_true", help="Whether this is an urban dictionary dataset",
     )
     parser.add_argument(
@@ -857,7 +870,7 @@ def main():
         logger.info("Training new model from scratch")
         model = model_class(config=config)
 
-    if args.urban_dictionary_dataset or args.parsed_dictionary_dataset:
+    if args.urban_dictionary_dataset or args.parsed_dictionary_dataset or args.inverse_parsed_dictionary_dataset:
         logger.info("Urban dictionary dataset: adding special tokens and resizing model")
         tokenizer.add_special_tokens(datasets.SpecialTokens.special_tokens_dict())
         model.resize_token_embeddings(len(tokenizer))

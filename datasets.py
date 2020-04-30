@@ -7,6 +7,8 @@ import itertools
 import dictionary_definition
 import re
 import torch
+import random
+import stanza
 from collections import Counter
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
@@ -27,6 +29,73 @@ oed_to_upos = {
     "conjunction": ("AUX"),
     "pronoun": ("INTJ", "NOUN"),
 }
+
+
+@dataclass
+class GeneratedWord:
+    word: str
+    pos: Optional[str]
+    topic: Optional[str]
+    definition: str
+    example: Optional[str]
+    from_example_expansion: bool = False
+
+
+class Blacklist:
+    def __init__(self, blacklist_set):
+        self.blacklist_set = blacklist_set
+
+    def merge(self, other):
+        self.blacklist_set |= other.blacklist_set
+        return self
+
+    def contains(self, word, recursive=True):
+        word = word.strip().lower()
+        return (
+            word in self.blacklist_set
+            or re.sub(r"('s|s|ing)$", "", word) in self.blacklist_set
+            or (recursive and all(self.contains(e, recursive=False) for e in word.split()))
+        )
+
+    @classmethod
+    def load(cls, path):
+        with open(path, "rb") as f:
+            return cls(pickle.load(f))
+
+    @classmethod
+    def from_text(cls, s, min_threshold=3):
+        pipe = stanza.Pipeline(lang="en", processors="tokenize", use_gpu=False)
+        res = pipe(s)
+        cnt = Counter()
+        two_prev = None
+        prev = None
+        for w in res.iter_words():
+            cnt[w.text.lower()] += 1
+            if prev:
+                cnt[f"{prev} {w.text}".lower()] += 1
+            if two_prev:
+                cnt[f"{two_prev} {prev} {w.text}".lower()] += 1
+            two_prev = prev
+            prev = w.text
+
+        return cls(set(k for k, v in cnt.items() if v > min_threshold))
+
+    @classmethod
+    def from_parsed_dictionary(cls, path):
+        blacklist = set(
+            (
+                x.lower()
+                for x in itertools.chain.from_iterable([e.word] + e.derivatives for e in pickle.load(open(path, "rb")))
+            )
+        )
+        return cls(blacklist)
+
+    def dump(self, path):
+        with open(path, "wb") as f:
+            pickle.dump(self.blacklist_set, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def __len__(self):
+        return len(self.blacklist_set)
 
 
 def _len_range_overlap(x, y):
@@ -60,8 +129,8 @@ def _in_split_range(split_range, randomizer_str):
     return (val >= start_range and val < end_range).item()
 
 
-def _cache_path(base_directory, filename, **keys):
-    path = []
+def _cache_path(class_name, base_directory, filename, **keys):
+    path = [class_name]
     for k, v in keys.items():
         if isinstance(v, str):
             path.append(f"{k}-{v}")
@@ -139,15 +208,6 @@ class SpecialTokens:
 
 class ParsedDictionaryDefinitionDataset(Dataset):
     @dataclass
-    class GeneratedWord:
-        word: str
-        pos: Optional[str]
-        topic: Optional[str]
-        definition: str
-        example: Optional[str]
-        from_example_expansion: bool = False
-
-    @dataclass
     class GenerationStats:
         num_iterations: int = 0
 
@@ -161,7 +221,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
         num_example_expansions: int = 0
         num_example_expansions_successful: int = 0
-        num_example_expanson_hail_maries: int = 0
+        num_example_expansion_hail_maries: int = 0
         num_user_filtered: int = 0
         num_returned: int = 0
 
@@ -177,20 +237,11 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     ("example_filtered", self.num_example_filtered),
                     ("example_expansions", self.num_example_expansions),
                     ("example_expansion_success", self.num_example_expansions_successful),
-                    ("example_expansion_hail_maries", self.num_example_expansions_hail_maries),
+                    ("example_expansion_hail_maries", self.num_example_expansion_hail_maries),
                     ("user_filtered", self.num_user_filtered),
                     ("returned", self.num_returned),
                 )
             )
-
-    @classmethod
-    def in_blacklist(cls, word, blacklist, recursive=True):
-        word = word.strip().lower()
-        return (
-            word in blacklist
-            or re.sub(r"('s|s|ing)$", "", word) in blacklist
-            or (recursive and all(cls.in_blacklist(e, blacklist, recursive=False) for e in word.split()))
-        )
 
     @classmethod
     def _split_re(self):
@@ -240,16 +291,15 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         num_expansion_candidates=10,
         example_match_pos_pipeline=None,
         dedupe_titles=True,
-        device="cuda",
         hail_mary_example=False,
         user_filter=None,
     ):
         ret = []
         num_iteration = 0
         if isinstance(prefix, str):
-            input = tokenizer.encode(prefix, return_tensors="pt").to(device)
+            input = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
         else:
-            input = torch.tensor([prefix], dtype=torch.long).to(device)
+            input = torch.tensor([prefix], dtype=torch.long).to(model.device)
 
         eos_token_ids = tokenizer.encode(SpecialTokens.EOS_TOKEN)
         example_sep_ids = tokenizer.encode(SpecialTokens.EXAMPLE_SEP)
@@ -278,6 +328,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
                 m = split_re.match(decoded)
                 if not m:
+                    print(decoded)
                     stats.num_failed_match += 1
                     continue
 
@@ -287,7 +338,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                 pos = m.group("pos")
                 example = m.group("example")
 
-                generated_word = cls.GeneratedWord(
+                generated_word = GeneratedWord(
                     word=title and title.strip(),
                     definition=definition and definition.strip(),
                     example=example and example.strip(),
@@ -295,7 +346,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     topic=topic and topic.strip(),
                 )
 
-                if cls.in_blacklist(title, blacklist):
+                if blacklist and blacklist.contains(title):
                     stats.num_blacklist_filtered += 1
                     continue
 
@@ -353,7 +404,6 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                                 blacklist=blacklist,
                                 do_example_expansion=False,
                                 generation_args=expansion_generation_args,
-                                device=device,
                                 example_match_pos_pipeline=example_match_pos_pipeline,
                                 dedupe_titles=False,
                                 user_filter=user_filter,
@@ -364,7 +414,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                         more_words = do_expand_generate(example_prefix)
                         if not more_words and hail_mary_example:
                             more_words = do_expand_generate(example_prefix + tokenizer.encode(title))
-                            stats.num_example_expanson_hail_maries += 1
+                            stats.num_example_expansion_hail_maries += 1
 
                         more_words.sort(key=lambda x: len(x.example), reverse=True)
 
@@ -439,9 +489,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
         return examples
 
-    def __init__(
-        self, tokenizer: PreTrainedTokenizer, args, file_path: str, splits=(1.0), split_idx=0,
-    ):
+    def __init__(self, tokenizer: PreTrainedTokenizer, args, file_path: str, splits=(1.0), split_idx=0):
         self.max_len = min(tokenizer.max_len_single_sentence, args.block_size)
         self.bos_token_ids = tokenizer.encode(SpecialTokens.BOS_TOKEN)
         self.eos_token_ids = tokenizer.encode(SpecialTokens.EOS_TOKEN)
@@ -454,7 +502,198 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         directory, filename = os.path.split(file_path)
 
         cached_features_file = _cache_path(
-            directory, filename, model_type=args.model_type, splits=splits, split_idx=split_idx, max_len=self.max_len,
+            self.__class__.__name__,
+            directory,
+            filename,
+            model_type=args.model_type,
+            splits=splits,
+            split_idx=split_idx,
+            max_len=self.max_len,
+        )
+
+        if os.path.exists(cached_features_file) and not args.overwrite_cache:
+            logger.info("Loading features from cached file %s", cached_features_file)
+            with open(cached_features_file, "rb") as handle:
+                self.examples = pickle.load(handle)
+            logger.info("Loaded {len(self.examples)} features")
+        else:
+            logger.info(
+                f"Cache at {cached_features_file} not found... creating features from dataset file at %s", directory,
+            )
+
+            self.examples = []
+            split_range = _split_range(splits, split_idx)
+
+            with open(file_path, "rb") as f:
+                entries = pickle.load(f)
+
+            for entry in entries:
+                if _in_split_range(split_range, entry.word):
+                    self.examples.extend(self._make_examples(tokenizer, entry))
+
+            logger.info(f"Saving {len(self.examples)} features into cached file {cached_features_file}")
+            with open(cached_features_file, "wb") as handle:
+                pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, item):
+        return torch.tensor(self.examples[item], dtype=torch.long)
+
+
+class InverseParsedDictionaryDefinitionDataset(Dataset):
+    @classmethod
+    def _split_re(self):
+        split_re_pat = (
+            f"^{re.escape(SpecialTokens.BOS_TOKEN)}(?P<definition>.+?)"
+            f"{re.escape(SpecialTokens.DEFINITION_SEP)}(?P<title>.+?)"
+            f"(?:{re.escape(SpecialTokens.POS_SEP)}(?P<pos>.+?))?"
+            f"(?:{re.escape(SpecialTokens.TOPIC_SEP)}(?P<topic>.+?))?"
+            f"(?:{re.escape(SpecialTokens.EXAMPLE_SEP)}(?P<example>.+?))*"
+            f"{re.escape(SpecialTokens.EOS_TOKEN)}"
+        )
+        split_re = re.compile(split_re_pat, flags=re.MULTILINE | re.DOTALL)
+        return split_re
+
+    @classmethod
+    def generate_words(
+        cls,
+        tokenizer,
+        model,
+        prefix=SpecialTokens.BOS_TOKEN,
+        num=100,
+        max_iterations=10,
+        generation_args={},
+        blacklist=(),
+        dedupe_titles=True,
+        user_filter=None,
+    ):
+        ret = []
+        num_iteration = 0
+        if isinstance(prefix, str):
+            input = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
+        else:
+            input = torch.tensor([prefix], dtype=torch.long).to(model.device)
+
+        split_re = cls._split_re()
+        seen_titles = set()
+        while len(ret) < num and num_iteration < max_iterations:
+            num_iteration += 1
+            generated = model.generate(
+                input,
+                pad_token_id=tokenizer.pad_token_id,
+                bos_token_id=tokenizer.bos_token_id,
+                eos_token_id=tokenizer.eos_token_id,
+                **generation_args,
+            )
+
+            for i in range(generated.size()[0]):
+                if len(ret) >= num:
+                    break
+
+                sentence_tokens = generated[i, :].tolist()
+                decoded = tokenizer.decode(sentence_tokens)
+
+                m = split_re.match(decoded)
+                if not m:
+                    continue
+
+                title = m.group("title")
+                definition = m.group("definition")
+                topic = m.group("topic")
+                pos = m.group("pos")
+                example = m.group("example")
+
+                generated_word = GeneratedWord(
+                    word=title and title.strip(),
+                    definition=definition and definition.strip(),
+                    example=example and example.strip(),
+                    pos=pos and pos.strip(),
+                    topic=topic and topic.strip(),
+                )
+
+                if blacklist and blacklist.contains(title):
+                    continue
+
+                if dedupe_titles and title.strip().lower() in seen_titles:
+                    continue
+
+                if user_filter and not user_filter(generated_word):
+                    continue
+                else:
+                    ret.append(generated_word)
+                    seen_titles.add(generated_word.word.lower())
+
+        return ret[:num], None
+
+    def _make_examples(self, tokenizer, entry: dictionary_definition.Entry):
+        examples = []
+        for sense in entry.senses:
+            for definition in sense.definitions:
+                if isinstance(definition, dictionary_definition.ReferenceDefinition):
+                    continue
+
+                token_groups = []
+                token_groups.append(TokenGroup(separator=[], payload=tokenizer.encode(definition.definition),))
+
+                token_groups.append(TokenGroup(separator=self.definition_sep_ids, payload=tokenizer.encode(entry.word)))
+
+                if sense.pos:
+                    if definition.pos_modifier:
+                        payload = tokenizer.encode(f"{sense.pos} {definition.pos_modifier}")
+                    else:
+                        payload = tokenizer.encode(sense.pos)
+
+                    token_groups.append(TokenGroup(separator=self.pos_sep_ids, payload=payload))
+
+                if definition.topic:
+                    token_groups.append(
+                        TokenGroup(separator=self.topic_sep_ids, payload=tokenizer.encode(definition.topic),)
+                    )
+
+                for example in definition.examples:
+                    token_groups.append(
+                        TokenGroup(
+                            separator=self.example_sep_ids, payload=tokenizer.encode(example), remove_if_truncated=True,
+                        )
+                    )
+
+                example = _join_and_truncate(
+                    max_len=self.max_len,
+                    begin_tokens=self.bos_token_ids,
+                    end_tokens=self.eos_token_ids,
+                    token_groups=token_groups,
+                )
+
+                assert (
+                    len(example) <= self.max_len
+                ), f"Example should be less than max length: {len(example)} Vs. {self.max_len}"
+
+                examples.append(example)
+
+        return examples
+
+    def __init__(self, tokenizer: PreTrainedTokenizer, args, file_path: str, splits=(1.0), split_idx=0):
+        self.max_len = min(tokenizer.max_len_single_sentence, args.block_size)
+        self.bos_token_ids = tokenizer.encode(SpecialTokens.BOS_TOKEN)
+        self.eos_token_ids = tokenizer.encode(SpecialTokens.EOS_TOKEN)
+        self.pos_sep_ids = tokenizer.encode(SpecialTokens.POS_SEP)
+        self.definition_sep_ids = tokenizer.encode(SpecialTokens.DEFINITION_SEP)
+        self.example_sep_ids = tokenizer.encode(SpecialTokens.EXAMPLE_SEP)
+        self.topic_sep_ids = tokenizer.encode(SpecialTokens.TOPIC_SEP)
+
+        assert os.path.isfile(file_path) or os.path.islink(file_path)
+        directory, filename = os.path.split(file_path)
+
+        cached_features_file = _cache_path(
+            self.__class__.__name__,
+            directory,
+            filename,
+            model_type=args.model_type,
+            splits=splits,
+            split_idx=split_idx,
+            max_len=self.max_len,
         )
 
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
@@ -528,7 +767,13 @@ class BinaryDictionaryDefinitionDataset(Dataset):
 
         directory, filename = os.path.split(file_path)
         cached_features_file = _cache_path(
-            directory, filename, model_type=args.model_type, splits=splits, split_idx=split_idx, max_len=self.max_len,
+            self.__class__.__name__,
+            directory,
+            filename,
+            model_type=args.model_type,
+            splits=splits,
+            split_idx=split_idx,
+            max_len=self.max_len,
         )
 
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
@@ -595,7 +840,13 @@ class UrbanDictionaryDataset(Dataset):
         directory, filename = os.path.split(file_path)
 
         cached_features_file = _cache_path(
-            directory, filename, model_type=args.model_type, splits=splits, split_idx=split_idx, max_len=self.max_len,
+            self.__class__.__name__,
+            directory,
+            filename,
+            model_type=args.model_type,
+            splits=splits,
+            split_idx=split_idx,
+            max_len=self.max_len,
         )
 
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
