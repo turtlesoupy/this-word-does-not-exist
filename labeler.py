@@ -15,9 +15,7 @@ def wilson(ups, downs):
 
     z = 1.96  # 1.44 = 85%, 1.96 = 95%
     phat = float(ups) / n
-    return (
-        phat + z * z / (2 * n) - z * sqrt((phat * (1 - phat) + z * z / (4 * n)) / n)
-    ) / (1 + z * z / n)
+    return (phat + z * z / (2 * n) - z * sqrt((phat * (1 - phat) + z * z / (4 * n)) / n)) / (1 + z * z / n)
 
 
 def query_yes_no(question, default="yes"):
@@ -35,9 +33,7 @@ def do_label(datasets, limit=None, prompt=None, dataset_labels=None):
     clear = lambda: os.system("clear")
 
     items_to_label = list(
-        itertools.chain.from_iterable(
-            [[(i, d) for d in dataset] for i, dataset in enumerate(datasets)]
-        )
+        itertools.chain.from_iterable([[(i, d) for d in dataset] for i, dataset in enumerate(datasets)])
     )
     random.shuffle(items_to_label)
 
@@ -58,12 +54,8 @@ def do_label(datasets, limit=None, prompt=None, dataset_labels=None):
         if response:
             dataset_positives[dataset_idx] += 1
 
-    dataset_negatives = [
-        dataset_totals[i] - dataset_positives[i] for i in range(len(datasets))
-    ]
-    wilsons = [
-        wilson(dataset_positives[i], dataset_negatives[i]) for i in range(len(datasets))
-    ]
+    dataset_negatives = [dataset_totals[i] - dataset_positives[i] for i in range(len(datasets))]
+    wilsons = [wilson(dataset_positives[i], dataset_negatives[i]) for i in range(len(datasets))]
 
     print(f"Dataset totals:")
     print(
@@ -85,9 +77,7 @@ def main():
         raise RuntimeError("Require a minimum of two datasets")
 
     datasets = [pickle.load(open(d, "rb")) for d in args.datasets]
-    do_label(
-        datasets, limit=args.limit, prompt=args.prompt, dataset_labels=args.datasets
-    )
+    do_label(datasets, limit=args.limit, prompt=args.prompt, dataset_labels=args.datasets)
 
 
 if __name__ == "__main__":

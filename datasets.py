@@ -1,12 +1,8 @@
 from dataclasses import dataclass
-import time
-import types
 import os
 import logging
-import random
 import pickle
 import hashlib
-import string
 import itertools
 import dictionary_definition
 import re
@@ -15,6 +11,7 @@ from collections import Counter
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
 from typing import NamedTuple, List, Optional
+from io import StringIO
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +132,7 @@ class SpecialTokens:
             "bos_token": cls.BOS_TOKEN,
             "eos_token": cls.EOS_TOKEN,
             "pad_token": cls.PAD,
-            "additional_special_tokens": [cls.DEFINITION_SEP, cls.EXAMPLE_SEP, cls.POS_SEP, cls.TOPIC_SEP,],
+            "additional_special_tokens": [cls.DEFINITION_SEP, cls.EXAMPLE_SEP, cls.POS_SEP, cls.TOPIC_SEP],
         }
 
 
@@ -163,6 +160,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
         num_example_expansions: int = 0
         num_example_expansions_successful: int = 0
+        num_user_filtered: int = 0
         num_returned: int = 0
 
         def __str__(self):
@@ -176,7 +174,8 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     ("proper_noun_filtered", self.num_proper_noun_filtered),
                     ("example_filtered", self.num_example_filtered),
                     ("example_expansions", self.num_example_expansions),
-                    ("example_expansion_success", self.num_example_expansions_successful,),
+                    ("example_expansion_success", self.num_example_expansions_successful),
+                    ("user_filtered", self.num_user_filtered),
                     ("returned", self.num_returned),
                 )
             )
@@ -239,6 +238,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         example_match_pos_pipeline=None,
         dedupe_titles=True,
         device="cuda",
+        user_filter=None,
     ):
         ret = []
         num_iteration = 0
@@ -282,7 +282,14 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                 topic = m.group("topic")
                 pos = m.group("pos")
                 example = m.group("example")
-                pos_guess = None
+
+                generated_word = cls.GeneratedWord(
+                    word=title and title.strip(),
+                    definition=definition and definition.strip(),
+                    example=example and example.strip(),
+                    pos=pos and pos.strip(),
+                    topic=topic and topic.strip(),
+                )
 
                 if cls.in_blacklist(title, blacklist):
                     stats.num_blacklist_filtered += 1
@@ -344,8 +351,10 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                             device=device,
                             example_match_pos_pipeline=example_match_pos_pipeline,
                             dedupe_titles=False,
+                            user_filter=user_filter,
                         )
                         more_words.sort(key=lambda x: len(x.example), reverse=True)
+
                         if more_words:
                             # TODO: Do I really want to prefer longer examples?
                             w = more_words[len(more_words) // 2]
@@ -353,20 +362,17 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                             w.from_example_expansion = True
                             ret.append(w)
                             seen_titles.add(title.strip().lower())
+                        else:
+                            continue
                     else:
                         stats.num_example_filtered += 1
                         continue
+                elif user_filter and not user_filter(generated_word):
+                    stats.num_user_filtered += 1
+                    continue
                 else:
-                    ret.append(
-                        cls.GeneratedWord(
-                            word=title and title.strip(),
-                            definition=definition and definition.strip(),
-                            example=example and example.strip(),
-                            pos=pos and pos.strip(),
-                            topic=topic and topic.strip(),
-                        )
-                    )
-                    seen_titles.add(title.strip().lower())
+                    ret.append(generated_word)
+                    seen_titles.add(generated_word.word.lower())
 
         stats.num_returned = len(ret)
         return ret[:num], stats
@@ -476,7 +482,7 @@ class BinaryDictionaryDefinitionDataset(Dataset):
 
     @classmethod
     def _make_example(cls, tokenizer, definition):
-        max_len = self.max_len
+        max_len = cls.max_len
 
         m = re.match(r"\s*" + re.escape(definition.title) + r"\d*\s*(\|[^|]*\|)?\s*", definition.entry_str,)
         if m:
@@ -524,9 +530,9 @@ class BinaryDictionaryDefinitionDataset(Dataset):
             self.examples = []
 
             with open(file_path, "rb") as f:
-                for dictionary_definition in DictionaryDefinition.gen_from_apple_dictionary(f):
-                    if _in_split_range(split_range, dictionary_definition.title):
-                        self.examples.append(self._make_example(tokenizer, dictionary_definition))
+                for dd in dictionary_definition.DictionaryDefinition.gen_from_apple_dictionary(f):
+                    if _in_split_range(split_range, dd.title):
+                        self.examples.append(self._make_example(tokenizer, dd))
 
             logger.info(f"Saving {len(self.examples)} features into cached file {cached_features_file}")
             with open(cached_features_file, "wb") as handle:
@@ -624,7 +630,7 @@ class WikiArticleTitleDataset(Dataset):
     @classmethod
     def refine_wikitext(cls, istream, limit=None):
         last_blank = False
-        title_matcher = re.compile("^[\s]*= ([^=]*) =[\s]*$")
+        title_matcher = re.compile(r"^[\s]*= ([^=]*) =[\s]*$")
         last_title = None
 
         article_text = StringIO()
@@ -641,7 +647,7 @@ class WikiArticleTitleDataset(Dataset):
                 cleaned_line = re.sub(re.escape(last_title), "TITLE", line, flags=re.IGNORECASE) if last_title else line
                 article_text.write(cleaned_line)
 
-            last_blank = re.match("^\s*$", line)
+            last_blank = re.match(r"^\s*$", line)
 
             if limit and i > limit:
                 break
@@ -652,7 +658,7 @@ class WikiArticleTitleDataset(Dataset):
     def generate_text_dataset(cls, istream, ostream, offset=0, stride=1024, limit=None):
         def _output_range(article, start, end):
             text = article.text[start:end]
-            spaces = list(re.compile("\s+").finditer(text))
+            spaces = list(re.compile(r"\s+").finditer(text))
             if spaces:
                 replace_idx = spaces[-1].span()[0]
                 ostream.write(text[:replace_idx])
@@ -708,7 +714,7 @@ class WikiArticleTitleDataset(Dataset):
                     for i in range(0, len(tokenized_article_text) - article_block_size + 1, article_block_size,):
                         self.examples.append(
                             self._make_example(
-                                tokenizer, tokenized_article_text[i : i + article_block_size], tokenized_title,
+                                tokenizer, tokenized_article_text[i : (i + article_block_size)], tokenized_title,
                             )
                         )
 

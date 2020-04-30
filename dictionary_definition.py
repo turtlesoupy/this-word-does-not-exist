@@ -116,26 +116,16 @@ class DictionaryDefinition:
                     continue
 
                 yield cls(
-                    title=title_soup.get_text(),
-                    entry_str=entry_soup.get_text(),
-                    parsed_entry=entry_soup,
+                    title=title_soup.get_text(), entry_str=entry_soup.get_text(), parsed_entry=entry_soup,
                 )
 
 
 class AppleDictParser:
     @classmethod
     def parse_pronounciations(cls, parsed_entry):
-        pronounciation_encloses = [
-            e
-            for e in parsed_entry.find_all("span", class_="prx")
-            if e.get_text().strip()
-        ]
+        pronounciation_encloses = [e for e in parsed_entry.find_all("span", class_="prx") if e.get_text().strip()]
         if len(pronounciation_encloses) == 0:
-            pronounciation_encloses = [
-                e
-                for e in parsed_entry.find_all("span", class_="pr")
-                if e.get_text().strip()
-            ]
+            pronounciation_encloses = [e for e in parsed_entry.find_all("span", class_="pr") if e.get_text().strip()]
 
         if not pronounciation_encloses:
             return None
@@ -146,33 +136,20 @@ class AppleDictParser:
             if not pronounciations:
                 raise InvalidParseAssumptionError(f"No pronounciations found")
 
-            ret.extend(
-                [
-                    Pronounciation(text=p.get_text(), type=p["d:pr"])
-                    for p in pronounciations
-                ]
-            )
+            ret.extend([Pronounciation(text=p.get_text(), type=p["d:pr"]) for p in pronounciations])
         return ret
 
     @classmethod
     def parse_sense_definitions(cls, parsed_entry):
         global_pos_modifier_span = parsed_entry.find_all("span", class_="gg")
         global_pos_modifier_span = [
-            e
-            for e in global_pos_modifier_span
-            if not e.find_parents("span", class_="msDict")
+            e for e in global_pos_modifier_span if not e.find_parents("span", class_="msDict")
         ]  # Filter out local ones
-        global_pos_modifier = (
-            global_pos_modifier_span[0].get_text().strip()
-            if global_pos_modifier_span
-            else None
-        )
+        global_pos_modifier = global_pos_modifier_span[0].get_text().strip() if global_pos_modifier_span else None
         definitions = []
         entry_spans = find_at_least_one(parsed_entry, "span", class_="msDict")
         for entry_span in entry_spans:
-            if (
-                not entry_span.get_text().strip().strip("•")
-            ):  # Some malformed entries, e.g. thrash
+            if not entry_span.get_text().strip().strip("•"):  # Some malformed entries, e.g. thrash
                 continue
 
             definition_spans = entry_span.find_all("span", class_="df")
@@ -181,27 +158,16 @@ class AppleDictParser:
                 for definition_span in definition_spans:
                     example_spans = entry_span("span", class_="ex")
                     topic_spans = [
-                        e
-                        for e in entry_span("span", class_="lg")
-                        if not e.find_parents("span", class_="eg")
+                        e for e in entry_span("span", class_="lg") if not e.find_parents("span", class_="eg")
                     ]
                     if len(topic_spans) > 1:
-                        logging.warning(
-                            f"Too many topics found: {topic_spans}, picking first one"
-                        )
+                        logging.warning(f"Too many topics found: {topic_spans}, picking first one")
 
-                    local_pos_modifier_span = entry_span.find(
-                        "span", class_="gg", recursive=False
-                    )
-                    local_pos_modifier = (
-                        local_pos_modifier_span
-                        and local_pos_modifier_span.get_text().strip()
-                    )
+                    local_pos_modifier_span = entry_span.find("span", class_="gg", recursive=False)
+                    local_pos_modifier = local_pos_modifier_span and local_pos_modifier_span.get_text().strip()
 
                     definition = definition_span.get_text().strip()
-                    examples = [
-                        e.get_text().strip().strip(":").strip() for e in example_spans
-                    ]
+                    examples = [e.get_text().strip().strip(":").strip() for e in example_spans]
                     topic = topic_spans and topic_spans[0].get_text().strip()
 
                     date_spans = definition_span("span", class_="dg")
@@ -222,15 +188,9 @@ class AppleDictParser:
 
                     for referenced_term in referenced_terms:
                         reference = referenced_term.get_text().strip()
-                        definitions.append(
-                            ReferenceDefinition(
-                                pos_modifier=global_pos_modifier, reference=reference,
-                            )
-                        )
+                        definitions.append(ReferenceDefinition(pos_modifier=global_pos_modifier, reference=reference,))
             elif entry_span.find("span", class_="ex"):
-                logger.warning(
-                    f"Silently ignoring example without corresponding definition {entry_span}"
-                )
+                logger.warning(f"Silently ignoring example without corresponding definition {entry_span}")
             else:
                 raise InvalidParseAssumptionError(f"Weird span: {entry_span}")
 
@@ -276,9 +236,7 @@ class AppleDictParser:
 
     @classmethod
     def parse_origin(cls, parsed_entry):
-        etym_type = find_exactly_one(
-            parsed_entry, "span", class_="tg_etym", recursive=False
-        )
+        etym_type = find_exactly_one(parsed_entry, "span", class_="tg_etym", recursive=False)
         if etym_type.get_text().strip() != "ORIGIN":
             raise InvalidParseAssumptionError(f"Unexpected etym type: {etym_type}")
 
@@ -291,9 +249,7 @@ class AppleDictParser:
         subentries = find_at_least_one(parsed_entry, "span", class_="subEntry")
         ret = []
         for subentry in subentries:
-            word_span = subentry.find("span", class_="x_xoh") or subentry.find(
-                "span", class_="x_xot"
-            )
+            word_span = subentry.find("span", class_="x_xoh") or subentry.find("span", class_="x_xot")
             if subentry.find("span", class_="msDict"):
                 definitions = cls.parse_sense_definitions(subentry)
             else:
@@ -308,13 +264,7 @@ class AppleDictParser:
         defn_entry = find_exactly_one(entry, "span", class_="sg")
 
         head_word_span = find_exactly_one(head_entry, "span", class_="hw")
-        word = " ".join(
-            [
-                t.strip()
-                for t in head_word_span.contents
-                if type(t) == bs4.element.NavigableString
-            ]
-        ).strip()
+        word = " ".join([t.strip() for t in head_word_span.contents if type(t) == bs4.element.NavigableString]).strip()
 
         variant_span = find_at_most_one(head_word_span, "span", class_="tg_hw")
         variant = int(variant_span.get_text()) if variant_span else None
@@ -330,15 +280,11 @@ class AppleDictParser:
             if "se1" in c["class"]:
                 senses.append(cls.parse_sense(c))
             elif c.get_text().strip():
-                raise InvalidParseAssumptionError(
-                    f"Weird tag found in definition: {c.prettify()}!"
-                )
+                raise InvalidParseAssumptionError(f"Weird tag found in definition: {c.prettify()}!")
 
         phrases = []
         origin = None
-        subentries = entry.find_all(
-            "span", class_="t_derivatives"
-        )  # derivatives # TODO: verify
+        subentries = entry.find_all("span", class_="t_derivatives")  # derivatives # TODO: verify
         derivatives = []
         phrasal_verbs = []
         notes = []
@@ -392,12 +338,7 @@ def generate_words(
     while len(ret) < num and num_iteration < max_iterations:
         num_iteration += 1
 
-        generated = model.generate(
-            input,
-            max_length=max_length,
-            num_return_sequences=batch_size,
-            temperature=1.0,
-        )
+        generated = model.generate(input, max_length=max_length, num_return_sequences=batch_size, temperature=1.0,)
         valid_i = 0
 
         for i in range(generated.size()[0]):
@@ -408,16 +349,10 @@ def generate_words(
                 title = m.group(1).strip()
                 if not allow_proper_nouns and title[:1].upper() == title[:1]:
                     continue
-                elif (
-                    title.upper() in blacklist or title.upper().rstrip("s") in blacklist
-                ):
+                elif title.upper() in blacklist or title.upper().rstrip("s") in blacklist:
                     continue
                 else:
-                    ret.append(
-                        DictionaryDefinition(
-                            title=title, entry_str=m.group(2).rstrip("!")
-                        )
-                    )
+                    ret.append(DictionaryDefinition(title=title, entry_str=m.group(2).rstrip("!")))
             else:
                 logger.warning(f'Unable to match regex in "{decoded}"')
 

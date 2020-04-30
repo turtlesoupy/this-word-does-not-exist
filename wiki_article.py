@@ -46,28 +46,20 @@ def lm_eval(model, tokenizer, file_path, device="cuda", block_size=512, batch_si
     def collate(examples: List[torch.Tensor]):
         if tokenizer._pad_token is None:
             return pad_sequence(examples, batch_first=True)
-        return pad_sequence(
-            examples, batch_first=True, padding_value=tokenizer.pad_token_id
-        )
+        return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
 
     block_size = block_size - (tokenizer.max_len - tokenizer.max_len_single_sentence)
     eval_dataset = []
     with open(file_path, encoding="utf-8") as f:
         text = f.read()
         tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
-        for i in range(
-            0, len(tokenized_text) - block_size + 1, block_size
-        ):  # Truncate in block of block_size
-            tokenized = tokenizer.build_inputs_with_special_tokens(
-                tokenized_text[i : i + block_size]
-            )
+        for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
+            tokenized = tokenizer.build_inputs_with_special_tokens(tokenized_text[i : i + block_size])
             tensorized = torch.tensor(tokenized, dtype=torch.long)
             eval_dataset.append(tensorized)
 
     eval_sampler = SequentialSampler(eval_dataset)
-    eval_dataloader = DataLoader(
-        eval_dataset, sampler=eval_sampler, batch_size=batch_size, collate_fn=collate
-    )
+    eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=batch_size, collate_fn=collate)
 
     for batch in eval_dataloader:
         inputs, labels = (batch, batch)
@@ -88,10 +80,7 @@ def lm_eval(model, tokenizer, file_path, device="cuda", block_size=512, batch_si
 def perplexity(model, tokenizer, sentences, device="cuda", **fwd_args):
     with torch.no_grad():
         token_ids = [
-            torch.tensor(
-                [tokenizer.eos_token_id]
-                + tokenizer.convert_tokens_to_ids(tokenizer.tokenize(sentence))
-            )
+            torch.tensor([tokenizer.eos_token_id] + tokenizer.convert_tokens_to_ids(tokenizer.tokenize(sentence)))
             for sentence in sentences
         ]
         padded_tokens = pad_sequence(token_ids, batch_first=True)

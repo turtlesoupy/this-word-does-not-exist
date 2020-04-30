@@ -9,7 +9,8 @@ import pickle
 import itertools
 import datasets
 import logging
-import stanza 
+import stanza
+import random
 from transformers import AutoModelWithLMHead, AutoTokenizer
 from dataclasses import dataclass
 from typing import Optional
@@ -43,7 +44,7 @@ class WordGenerator:
         else:
             self.device = torch.device(device)
 
-        self.stanza_pos_pipeline = stanza.Pipeline(lang='en', processors='tokenize,mwt,pos')
+        self.stanza_pos_pipeline = stanza.Pipeline(lang="en", processors="tokenize,mwt,pos")
 
         logger.info(f"Using device {self.device}")
 
@@ -52,8 +53,7 @@ class WordGenerator:
             (
                 x.lower()
                 for x in itertools.chain.from_iterable(
-                    [e.word] + e.derivatives
-                    for e in pickle.load(open(blacklist_path, "rb"))
+                    [e.word] + e.derivatives for e in pickle.load(open(blacklist_path, "rb"))
                 )
             )
         )
@@ -68,7 +68,9 @@ class WordGenerator:
         self.model = AutoModelWithLMHead.from_pretrained(model_path).to(self.device)
         logger.info("Loaded model")
 
-    def generate_word(self, max_length=256):
+        self.approx_max_length = 250
+
+    def generate_word(self, user_filter=None):
         expanded, _ = datasets.ParsedDictionaryDefinitionDataset.generate_words(
             self.tokenizer,
             self.model,
@@ -77,25 +79,20 @@ class WordGenerator:
             blacklist=self.blacklist,
             do_example_expansion=True,
             generation_args=dict(
-                top_k=300,
-                num_return_sequences=10,
-                max_length=max_length,
-                do_sample=True,
+                top_k=300, num_return_sequences=10, max_length=self.approx_max_length, do_sample=True,
             ),
-            expansion_generation_overrides=dict(
-                top_k=50, num_return_sequences=20, do_sample=True,
-            ),
+            expansion_generation_overrides=dict(top_k=50, num_return_sequences=20, do_sample=True,),
             num_expansion_candidates=20,
             device=self.device,
             example_match_pos_pipeline=self.stanza_pos_pipeline,
+            user_filter=user_filter,
+            dedupe_titles=True,
         )
 
         return expanded[0] if expanded else None
 
-    def generate_definition(self, word, max_length=256):
-        prefix = (
-            f"{datasets.SpecialTokens.BOS_TOKEN}{word}{datasets.SpecialTokens.POS_SEP}"
-        )
+    def generate_definition(self, word, user_filter=None):
+        prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{word}{datasets.SpecialTokens.POS_SEP}"
         expanded, _ = datasets.ParsedDictionaryDefinitionDataset.generate_words(
             self.tokenizer,
             self.model,
@@ -103,15 +100,13 @@ class WordGenerator:
             prefix=prefix,
             max_iterations=1,
             do_example_expansion=True,
-            generation_args=dict(
-                top_k=75, num_return_sequences=5, max_length=max_length, do_sample=True,
-            ),
-            expansion_generation_overrides=dict(
-                top_k=50, num_return_sequences=10, do_sample=True,
-            ),
+            generation_args=dict(top_k=75, num_return_sequences=5, max_length=self.approx_max_length, do_sample=True,),
+            expansion_generation_overrides=dict(top_k=50, num_return_sequences=10, do_sample=True,),
             num_expansion_candidates=10,
             device=self.device,
             example_match_pos_pipeline=self.stanza_pos_pipeline,
+            dedupe_titles=False,
+            user_filter=user_filter,
         )
 
         if expanded:
@@ -133,11 +128,9 @@ def _definition_str(word_with_definition):
     return " ".join(word_view_str)
 
 
-def _formulate_reply_text(word_generator, text, author_name, max_defn_length=40):
-    removed_mentions = re.sub("(@[\S]*)", "", text).strip()
-    remove_word_define = re.sub(
-        "^(define |defn )", "", removed_mentions, flags=re.IGNORECASE
-    ).strip()
+def _formulate_reply_text(word_generator, text, author_name, max_len=250):
+    removed_mentions = re.sub(r"(@[\S]*)", "", text).strip()
+    remove_word_define = re.sub(r"^(define |defn )", "", removed_mentions, flags=re.IGNORECASE).strip()
 
     warning = None
     if len(remove_word_define) > 40:
@@ -146,66 +139,87 @@ def _formulate_reply_text(word_generator, text, author_name, max_defn_length=40)
             word = splits[0]
         else:
             word = remove_word_define[:40]
-        warning = "Your word was too long! Here is what I could do:"
+        warning = "Word too long! Here's:"
     elif len(remove_word_define) == 0:
-        warning = (
-            "I couldn't figure out what you wanted to define, so here is your username:"
-        )
         word = author_name
     elif remove_word_define == "me":
         word = author_name
     else:
         word = remove_word_define
 
+    def final_text(word_with_definition):
+        word_view_str = _definition_str(word_with_definition)
+        if warning:
+            return f"@{author_name} {warning} {word_view_str}"
+        else:
+            return f"@{author_name} \U0001F446 {word_view_str}"
+
     start_time = time.time()
-    word_with_definition = word_generator.generate_definition(word)
+    word_with_definition = word_generator.generate_definition(word, user_filter=lambda w: len(final_text(w)) < 250,)
     logging.info(f"Word generation took {time.time() - start_time:.2f}s")
 
     if not word_with_definition:
-        return "Something went wrong on my end, sorry \U0001F61E\U0001F61E\U0001F61E"
+        return f"@{author_name} something went wrong on my end, sorry \U0001F61E\U0001F61E\U0001F61E"
 
-    word_view_str = _definition_str(word_with_definition)
-    if warning:
-        reply = f"@{author_name} {warning} {word_view_str}"
-    else:
-        reply = f"@{author_name} {word_view_str}"
-
-    return reply
+    return final_text(word_with_definition)
 
 
-def _formulate_wotd_text(word_with_definition):
-    prefix = "Fake word of the day:"
+def _formulate_wotd_text(word_with_definition, emoji):
+    prefix = f"{emoji} Fake word of the day:"
     word_view_str = _definition_str(word_with_definition)
     return f"{prefix} {word_view_str}"
 
 
 def tweet_wotd(api, word_generator):
-    word = word_generator.generate_word()
+    emoji = random.choice(
+        (
+            "\U0001F970",
+            "\U0001F609",
+            "\U0001F600",
+            "\U0001F92A",
+            "\U0001F917",
+            "\U0001F92D",
+            "\U0001F92B",
+            "\U0001F914",
+            "\U0001F636",
+            "\U0001F60C",
+            "\U0001F635",
+            "\U0001F974",
+            "\U0001F920",
+            "\U0001F613",
+            "\U0001F64A",
+            "\U00002764",
+            "\U0001F91E",
+            "\U0001F44C",
+            "\U0001F450",
+            "\U0001F646",
+            "\U0001F575",
+            "\U0001F486",
+            "\U0001F425",
+            "\U0001F339",
+            "\U0001F31E",
+        )
+    )
+    word = word_generator.generate_word(user_filter=lambda w: len(_formulate_wotd_text(w, emoji)) < 250)
     if not word:
         raise RuntimeError("Error during generation")
 
-    wotd_text = _formulate_wotd_text(word)
+    wotd_text = _formulate_wotd_text(word, emoji)
     api.update_status(wotd_text)
 
 
 def bot_loop(bot_state, api, word_generator):
     while True:
-        cur = tweepy.Cursor(
-            api.mentions_timeline, since_id=bot_state.last_processed_id, count=50
-        )
+        cur = tweepy.Cursor(api.mentions_timeline, since_id=bot_state.last_processed_id, count=50)
         items = list(reversed(list(cur.items())))
 
         if len(items) > 0:
             logging.info(f"Found {len(items)} items to reply to!")
 
         for status in items:
-            reply = _formulate_reply_text(
-                word_generator, status.text, status.author.screen_name
-            )
+            reply = _formulate_reply_text(word_generator, status.text, status.author.screen_name)
             if len(reply) > MAX_TWEET_LENGTH:
-                logging.warning(
-                    f"Reply to {status.id} (@{status.author.screen_name}) too long... truncating: {reply}"
-                )
+                logging.warning(f"Reply to {status.id} (@{status.author.screen_name}) too long... truncating: {reply}")
                 reply = reply[:MAX_TWEET_LENGTH]
             api.update_status(reply, in_reply_to_status_id=status.id)
             bot_state.last_processed_id = status.id
@@ -229,7 +243,7 @@ def main(args):
     if not access_secret:
         raise RuntimeError("Missing TWITTER_ACCESS_SECRET environment variable")
 
-    stanza.download('en')
+    stanza.download("en")
 
     # Remove all handlers associated with the root logger object.
     for handler in logging.root.handlers[:]:
@@ -246,15 +260,10 @@ def main(args):
     else:
         logging.basicConfig(level=logging.INFO)
 
-
     auth = tweepy.OAuthHandler(api_key, api_secret)
     auth.set_access_token(access_token, access_secret)
     api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True,)
-    word_generator = WordGenerator(
-        device=args.device,
-        model_path=args.model_path,
-        blacklist_path=args.blacklist_path,
-    )
+    word_generator = WordGenerator(device=args.device, model_path=args.model_path, blacklist_path=args.blacklist_path,)
 
     if args.wotd_mode:
         tweet_wotd(api, word_generator)
@@ -264,13 +273,9 @@ def main(args):
 
         state_exists = os.path.exists(args.state_file)
         if not state_exists and not args.bootstrap:
-            raise RuntimeError(
-                f"Missing state file at {args.state_file}... did you mean to bootstrap?"
-            )
+            raise RuntimeError(f"Missing state file at {args.state_file}... did you mean to bootstrap?")
         elif state_exists and args.bootstrap:
-            raise RuntimeError(
-                f"Bootstrap specified and state file exists at {args.state_file}"
-            )
+            raise RuntimeError(f"Bootstrap specified and state file exists at {args.state_file}")
         elif args.bootstrap:
             bot_state = BotState(path=args.state_file)
         else:
@@ -280,31 +285,20 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run a twitter bot that replies to tweets with definitions"
-    )
+    parser = argparse.ArgumentParser(description="Run a twitter bot that replies to tweets with definitions")
     parser.add_argument(
-        "--bootstrap",
-        help="Whether to create the state file, otherwise it is required",
-        action="store_true",
+        "--bootstrap", help="Whether to create the state file, otherwise it is required", action="store_true",
     )
     parser.add_argument("--state-file", type=str, help="Path to the state file")
     parser.add_argument(
         "--device", help="Force a certain device (cuda / cpu)", type=str,
     )
+    parser.add_argument("--model-path", help="Model path for word generation", type=str, required=True)
     parser.add_argument(
-        "--model-path", help="Model path for word generation", type=str, required=True
-    )
-    parser.add_argument(
-        "--blacklist-path",
-        help="Blacklist path for word generation",
-        type=str,
-        required=True,
+        "--blacklist-path", help="Blacklist path for word generation", type=str, required=True,
     )
     parser.add_argument("--log-file", type=str, help="Log to this file")
-    parser.add_argument(
-        "--wotd-mode", action="store_true", help="Tweet a word of the day and quit"
-    )
+    parser.add_argument("--wotd-mode", action="store_true", help="Tweet a word of the day and quit")
     args = parser.parse_args()
 
     try:
