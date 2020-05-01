@@ -31,6 +31,11 @@ oed_to_upos = {
 }
 
 
+def _chunker(n, iterable, fillvalue=" "):
+    args = [iter(iterable)] * n
+    return itertools.zip_longest(fillvalue=fillvalue, *args)
+
+
 @dataclass
 class GeneratedWord:
     word: str
@@ -63,20 +68,21 @@ class Blacklist:
             return cls(pickle.load(f))
 
     @classmethod
-    def from_text(cls, s, min_threshold=3):
-        pipe = stanza.Pipeline(lang="en", processors="tokenize", use_gpu=False)
-        res = pipe(s)
+    def from_text_stream(cls, stream, min_threshold=3, chunk_size=256 * 1024 * 1024):
         cnt = Counter()
-        two_prev = None
-        prev = None
-        for w in res.iter_words():
-            cnt[w.text.lower()] += 1
-            if prev:
-                cnt[f"{prev} {w.text}".lower()] += 1
-            if two_prev:
-                cnt[f"{two_prev} {prev} {w.text}".lower()] += 1
-            two_prev = prev
-            prev = w.text
+        for chunk in _chunker(chunk_size, s):
+            pipe = stanza.Pipeline(lang="en", processors="tokenize")
+            res = pipe(s)
+            two_prev = None
+            prev = None
+            for w in res.iter_words():
+                cnt[w.text.lower()] += 1
+                if prev:
+                    cnt[f"{prev} {w.text}".lower()] += 1
+                if two_prev:
+                    cnt[f"{two_prev} {prev} {w.text}".lower()] += 1
+                two_prev = prev
+                prev = w.text
 
         return cls(set(k for k, v in cnt.items() if v > min_threshold))
 
@@ -464,7 +470,9 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     )
 
                 token_groups.append(
-                    TokenGroup(separator=self.definition_sep_ids, payload=tokenizer.encode(definition.definition),)
+                    TokenGroup(
+                        separator=self.definition_sep_ids, payload=tokenizer.encode(definition.definition.rstrip(". ")),
+                    )
                 )
 
                 for example in definition.examples:
@@ -635,7 +643,9 @@ class InverseParsedDictionaryDefinitionDataset(Dataset):
                     continue
 
                 token_groups = []
-                token_groups.append(TokenGroup(separator=[], payload=tokenizer.encode(definition.definition),))
+                token_groups.append(
+                    TokenGroup(separator=[], payload=tokenizer.encode(definition.definition.rstrip(". ")))
+                )
 
                 token_groups.append(TokenGroup(separator=self.definition_sep_ids, payload=tokenizer.encode(entry.word)))
 
