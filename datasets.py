@@ -61,7 +61,7 @@ class Blacklist:
         word = word.strip().lower()
         return (
             word in self.blacklist_set
-            or re.sub(r"('s|s|ing)$", "", word) in self.blacklist_set
+            or re.sub(r"('s|s|ing|')$", "", word) in self.blacklist_set
             or (recursive and all(self.contains(e, recursive=False) for e in word.split()))
             or (recursive and all(self.contains(e, recursive=False) for e in word.split("-")))
         )
@@ -72,11 +72,15 @@ class Blacklist:
             return cls(pickle.load(f))
 
     @classmethod
+    def from_text_lines(cls, stream):
+        return cls(set(e.strip().lower() for e in stream))
+
+    @classmethod
     def from_text_stream(cls, stream, min_threshold=3, chunk_size=1024 * 1024, use_gpu=False, sample_rate=1.0):
         cnt = Counter()
         for i, chunk in enumerate(_read_in_chunks(stream, chunk_size)):
             if sample_rate != 1.0 and random.random() > sample_rate:
-                break
+                continue
 
             pipe = stanza.Pipeline(lang="en", processors="tokenize", use_gpu=use_gpu)
             res = pipe(chunk)
@@ -91,7 +95,8 @@ class Blacklist:
                 two_prev = prev
                 prev = w.text
 
-        return cls(set(k for k, v in cnt.items() if v > min_threshold))
+        ret = cls(set(k for k, v in cnt.items() if v > min_threshold))
+        return ret
 
     @classmethod
     def from_parsed_dictionary(cls, path):
@@ -306,6 +311,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         dedupe_titles=True,
         hail_mary_example=False,
         user_filter=None,
+        filter_proper_nouns=False,
     ):
         ret = []
         num_iteration = 0
@@ -367,7 +373,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     stats.num_seen_filtered += 1
                     continue
 
-                if title.strip()[:1].isupper():
+                if filter_proper_nouns and title.strip()[:1].isupper():
                     stats.num_proper_noun_filtered += 1
                     continue
 

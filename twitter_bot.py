@@ -85,6 +85,7 @@ class WordGenerator:
             example_match_pos_pipeline=self.stanza_pos_pipeline,
             user_filter=user_filter,
             dedupe_titles=True,
+            filter_proper_nouns=True,
         )
 
         return expanded[0] if expanded else None
@@ -96,15 +97,16 @@ class WordGenerator:
             self.forward_model,
             num=1,
             prefix=prefix,
-            max_iterations=1,
+            max_iterations=2,
             do_example_expansion=True,
-            generation_args=dict(top_k=75, num_return_sequences=5, max_length=self.approx_max_length, do_sample=True,),
-            expansion_generation_overrides=dict(top_k=50, num_return_sequences=20, do_sample=True,),
-            num_expansion_candidates=20,
+            generation_args=dict(top_k=75, num_return_sequences=3, max_length=self.approx_max_length, do_sample=True,),
+            expansion_generation_overrides=dict(top_k=50, num_return_sequences=10, do_sample=True,),
+            num_expansion_candidates=10,
             example_match_pos_pipeline=self.stanza_pos_pipeline,
             dedupe_titles=False,
             user_filter=user_filter,
             hail_mary_example=True,
+            filter_proper_nouns=False,
         )
 
         logger.debug(stats)
@@ -123,10 +125,8 @@ class WordGenerator:
             blacklist=self.blacklist,
             num=1,
             prefix=prefix,
-            max_iterations=2,
-            generation_args=dict(
-                top_k=200, num_return_sequences=20, max_length=self.approx_max_length, do_sample=True,
-            ),
+            max_iterations=4,
+            generation_args=dict(top_k=200, num_return_sequences=5, max_length=self.approx_max_length, do_sample=True,),
             dedupe_titles=True,
             user_filter=user_filter,
         )
@@ -149,7 +149,10 @@ def _definition_str(word_with_definition, include_example=True):
 
     word_view_str.append(f"\n{word_with_definition.definition}")
     if include_example and word_with_definition.example:
-        word_view_str.append(f'\n"{word_with_definition.example}"')
+        example_string = re.sub(
+            word_with_definition.word, word_with_definition.word, word_with_definition.example, flags=re.IGNORECASE
+        )  # Minor cleanup to correct the case of a word in the example text
+        word_view_str.append(f'\n"{example_string}"')
     return " ".join(word_view_str)
 
 
