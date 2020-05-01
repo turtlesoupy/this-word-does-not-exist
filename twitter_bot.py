@@ -125,7 +125,7 @@ class WordGenerator:
             blacklist=self.blacklist,
             num=1,
             prefix=prefix,
-            max_iterations=4,
+            max_iterations=5,
             generation_args=dict(top_k=200, num_return_sequences=5, max_length=self.approx_max_length, do_sample=True,),
             dedupe_titles=True,
             user_filter=user_filter,
@@ -139,7 +139,11 @@ class WordGenerator:
             return None
 
 
-def _definition_str(word_with_definition, include_example=True):
+def _inverse_definition_str(word_with_definition):
+    return f"{word_with_definition.word}: {word_with_definition.definition}"
+
+
+def _definition_str(word_with_definition):
     word_view_str = [word_with_definition.word]
     if word_with_definition.pos:
         word_view_str.append(f"/{word_with_definition.pos}/")
@@ -148,7 +152,7 @@ def _definition_str(word_with_definition, include_example=True):
         word_view_str.append(f"[{word_with_definition.topic}]")
 
     word_view_str.append(f"\n{word_with_definition.definition}")
-    if include_example and word_with_definition.example:
+    if word_with_definition.example:
         example_string = re.sub(
             word_with_definition.word, word_with_definition.word, word_with_definition.example, flags=re.IGNORECASE
         )  # Minor cleanup to correct the case of a word in the example text
@@ -179,8 +183,12 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
     else:
         word = remove_word_define
 
-    def final_text(word_with_definition, include_example):
-        word_view_str = _definition_str(word_with_definition, include_example=include_example)
+    def final_text(word_with_definition):
+        if inverse_mode:
+            word_view_str = _inverse_definition_str(word_with_definition)
+        else:
+            word_view_str = _definition_str(word_with_definition)
+
         if warning:
             return f"@{author_name} {warning} {word_view_str}"
         else:
@@ -192,22 +200,20 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
             remove_word_define,
             user_filter=(
                 lambda w: (
-                    len(final_text(w, False)) < 250
+                    len(final_text(w)) < 250
                     and len(w.word.split()) < inverse_mode_threshold
                     and datasets.SpecialTokens.DEFINITION_SEP not in w.word
                 )
             ),
         )
     else:
-        word_with_definition = word_generator.generate_definition(
-            word, user_filter=lambda w: len(final_text(w, True)) < 250,
-        )
+        word_with_definition = word_generator.generate_definition(word, user_filter=lambda w: len(final_text(w)) < 250,)
     logger.info(f"Word generation ({'inverse' if inverse_mode else 'forward'}) took {time.time() - start_time:.2f}s")
 
     if not word_with_definition:
         return f"@{author_name} something went wrong on my end, sorry \U0001F61E\U0001F61E\U0001F61E"
 
-    return final_text(word_with_definition, include_example=(not inverse_mode))
+    return final_text(word_with_definition)
 
 
 def _formulate_wotd_text(word_with_definition, emoji):
