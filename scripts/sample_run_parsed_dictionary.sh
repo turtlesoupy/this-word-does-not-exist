@@ -1,7 +1,7 @@
 #!/bin/bash
 PYTHON_PATH=/home/tdimson/anaconda3/envs/company_makeup/bin/python
 $PYTHON_PATH run_language_modeling.py \
- --summary_comment=inverse_en_dictionary_parsed_lr_00001_max_len_512 \
+ --summary_comment=inverse_en_dictionary_parsed_lr_00001_max_len_512_fixedperiod \
  --output_dir=models/inverse_en_dictionary_parsed_lr_00001 \
  --model_type=gpt2 \
  --model_name_or_path=gpt2 \
@@ -22,4 +22,4 @@ $PYTHON_PATH run_language_modeling.py \
  --eval_subsampling 1.0 \
  --learning_rate 0.00001 \
  --block_size 512 \
- --num_train_epochs 5
+ --num_train_epochs 10

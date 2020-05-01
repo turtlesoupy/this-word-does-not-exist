@@ -31,9 +31,12 @@ oed_to_upos = {
 }
 
 
-def _chunker(n, iterable, fillvalue=" "):
-    args = [iter(iterable)] * n
-    return itertools.zip_longest(fillvalue=fillvalue, *args)
+def _read_in_chunks(stream, chunk_size=1 * 1024 * 1024):
+    while True:
+        data = stream.read(chunk_size)
+        if not data:
+            break
+        yield data
 
 
 @dataclass
@@ -60,6 +63,7 @@ class Blacklist:
             word in self.blacklist_set
             or re.sub(r"('s|s|ing)$", "", word) in self.blacklist_set
             or (recursive and all(self.contains(e, recursive=False) for e in word.split()))
+            or (recursive and all(self.contains(e, recursive=False) for e in word.split("-")))
         )
 
     @classmethod
@@ -68,11 +72,14 @@ class Blacklist:
             return cls(pickle.load(f))
 
     @classmethod
-    def from_text_stream(cls, stream, min_threshold=3, chunk_size=256 * 1024 * 1024):
+    def from_text_stream(cls, stream, min_threshold=3, chunk_size=1024 * 1024, use_gpu=False, sample_rate=1.0):
         cnt = Counter()
-        for chunk in _chunker(chunk_size, s):
-            pipe = stanza.Pipeline(lang="en", processors="tokenize")
-            res = pipe(s)
+        for i, chunk in enumerate(_read_in_chunks(stream, chunk_size)):
+            if sample_rate != 1.0 and random.random() > sample_rate:
+                break
+
+            pipe = stanza.Pipeline(lang="en", processors="tokenize", use_gpu=use_gpu)
+            res = pipe(chunk)
             two_prev = None
             prev = None
             for w in res.iter_words():

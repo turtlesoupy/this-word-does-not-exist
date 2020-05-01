@@ -115,15 +115,18 @@ class WordGenerator:
             return None
 
     def generate_word_from_definition(self, definition, user_filter=None):
-        prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{definition}{datasets.SpecialTokens.DEFINITION_SEP}"
+        # Data peculiarity: definitions ending in a period are out of domain
+        prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{definition.rstrip('. ')}{datasets.SpecialTokens.DEFINITION_SEP}"
         expanded, stats = datasets.InverseParsedDictionaryDefinitionDataset.generate_words(
             self.tokenizer,
             self.inverse_model,
             blacklist=self.blacklist,
             num=1,
             prefix=prefix,
-            max_iterations=1,
-            generation_args=dict(top_k=75, num_return_sequences=20, max_length=self.approx_max_length, do_sample=True,),
+            max_iterations=2,
+            generation_args=dict(
+                top_k=200, num_return_sequences=20, max_length=self.approx_max_length, do_sample=True,
+            ),
             dedupe_titles=True,
             user_filter=user_filter,
         )
@@ -136,7 +139,7 @@ class WordGenerator:
             return None
 
 
-def _definition_str(word_with_definition):
+def _definition_str(word_with_definition, include_example=True):
     word_view_str = [word_with_definition.word]
     if word_with_definition.pos:
         word_view_str.append(f"/{word_with_definition.pos}/")
@@ -145,18 +148,19 @@ def _definition_str(word_with_definition):
         word_view_str.append(f"[{word_with_definition.topic}]")
 
     word_view_str.append(f"\n{word_with_definition.definition}")
-    if word_with_definition.example:
+    if include_example and word_with_definition.example:
         word_view_str.append(f'\n"{word_with_definition.example}"')
     return " ".join(word_view_str)
 
 
 def _formulate_reply_text(word_generator, text, author_name, max_len=250):
+    inverse_mode_threshold = 3
     removed_mentions = re.sub(r"(@[\S]*)", "", text).strip()
     remove_word_define = re.sub(r"^(define |defn )", "", removed_mentions, flags=re.IGNORECASE).strip()
 
     warning = None
     inverse_mode = False
-    if len(remove_word_define.split()) >= 3:
+    if len(remove_word_define.split()) >= inverse_mode_threshold:
         inverse_mode = True
     elif len(remove_word_define) > 40:
         splits = remove_word_define.split()
@@ -172,8 +176,8 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
     else:
         word = remove_word_define
 
-    def final_text(word_with_definition):
-        word_view_str = _definition_str(word_with_definition)
+    def final_text(word_with_definition, include_example):
+        word_view_str = _definition_str(word_with_definition, include_example=include_example)
         if warning:
             return f"@{author_name} {warning} {word_view_str}"
         else:
@@ -182,16 +186,25 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
     start_time = time.time()
     if inverse_mode:
         word_with_definition = word_generator.generate_word_from_definition(
-            remove_word_define, user_filter=lambda w: len(final_text(w)) < 250,
+            remove_word_define,
+            user_filter=(
+                lambda w: (
+                    len(final_text(w, False)) < 250
+                    and len(w.word.split()) < inverse_mode_threshold
+                    and datasets.SpecialTokens.DEFINITION_SEP not in w.word
+                )
+            ),
         )
     else:
-        word_with_definition = word_generator.generate_definition(word, user_filter=lambda w: len(final_text(w)) < 250,)
+        word_with_definition = word_generator.generate_definition(
+            word, user_filter=lambda w: len(final_text(w, True)) < 250,
+        )
     logger.info(f"Word generation ({'inverse' if inverse_mode else 'forward'}) took {time.time() - start_time:.2f}s")
 
     if not word_with_definition:
         return f"@{author_name} something went wrong on my end, sorry \U0001F61E\U0001F61E\U0001F61E"
 
-    return final_text(word_with_definition)
+    return final_text(word_with_definition, include_example=(not inverse_mode))
 
 
 def _formulate_wotd_text(word_with_definition, emoji):
@@ -248,11 +261,10 @@ def bot_loop(bot_state, me, api, word_generator):
         )
 
         logger.debug(f"Starting {len(items)} items to reply to!")
-        items = [e for e in items if e.in_reply_to_user_id != me.id or e.in_reply_to_status_id is None]
-        logger.debug(f"Found {len(items)} items to reply to!")
 
         if len(items) == fetch_count:
             # If we are at capacity, heuristically dedupe to one per author
+            logger.info("At capacity, deduping seen authors")
             new_items = []
             seen_users = set()
             for item in items:
@@ -261,6 +273,15 @@ def bot_loop(bot_state, me, api, word_generator):
                 new_items.append(item)
                 seen_users.add(item.author_id)
             items = new_items
+
+        items = [
+            e
+            for e in items
+            if (e.in_reply_to_user_id != me.id or e.in_reply_to_status_id is None)
+            and e.author.id != me.id
+            and f"@{me.screen_name}" in e.text
+        ]
+        logger.debug(f"Found {len(items)} items to reply to!")
 
         for status in items:
             logger.debug(f"STATUS: {status.text}")
