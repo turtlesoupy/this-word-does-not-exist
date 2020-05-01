@@ -186,13 +186,15 @@ def _formulate_reply_text(word_generator, text, author_name, max_len=250):
     def final_text(word_with_definition):
         if inverse_mode:
             word_view_str = _inverse_definition_str(word_with_definition)
+            emoji = "\U0001F643"
         else:
             word_view_str = _definition_str(word_with_definition)
+            emoji = "\U0001F449"
 
         if warning:
             return f"@{author_name} {warning} {word_view_str}"
         else:
-            return f"@{author_name} \U0001F449 {word_view_str}"
+            return f"@{author_name} {emoji} {word_view_str}"
 
     start_time = time.time()
     if inverse_mode:
