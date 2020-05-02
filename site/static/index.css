@@ -1,0 +1,64 @@
+body {
+  background: black;
+  color: white;
+  font-family: "SF Pro Text","Helvetica Neue",-apple-system,BlinkMacSystemFont,"Helvetica","Segoe UI","Arial",sans-serif;
+}
+
+.warning {
+  text-align: center;
+  font-size: 8px;
+}
+
+
+.definition-zone {
+  text-align: center;
+  margin-top: 50px;
+  margin-bottom: 50px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100vw;
+  height: 70vh;
+  min-height: 70vh;
+  display: table-cell;
+  vertical-align: middle
+}
+
+.definition-zone .word {
+  font-weight: bold;
+  font-size: 4em;
+}
+
+.definition-zone .pos {
+  margin-bottom: 8px;
+  margin-top: 8px;
+  font-size: small;
+}
+
+.definition-and-example {
+  font-size: 1em;
+  margin-top: 1em;
+  margin-left: auto;
+  margin-right: auto;
+  width: 60vw;
+  max-width: 600px;
+}
+
+.example {
+    margin-top: 0.25em;
+    font-style: italic;
+}
+
+.attribution {
+    font-size: small;
+    width: 100%;
+    text-align: center;
+}
+
+.explanation {
+    margin-bottom: 1em;
+}
+
+.secondary-attribution {
+    margin-top: 8px;
+    font-size: x-small;
+}

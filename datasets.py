@@ -347,7 +347,6 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
                 m = split_re.match(decoded)
                 if not m:
-                    print(decoded)
                     stats.num_failed_match += 1
                     continue
 

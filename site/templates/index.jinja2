@@ -1,0 +1,57 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>This Word Does Not Exist</title>
+  <meta name="description" content="This Word Does Not Exist uses an artificial intelligence model named GPT-2 to invent new words in the English language.">
+  <meta name="author" content="Thomas Dimson">
+  <link rel="stylesheet" href="static/index.css">
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-25938904-2"></script>
+  <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-25938904-2');
+   </script>
+</head>
+
+<body>
+    <div class="warning">
+      This word does not exist:
+    </div>
+
+    <div class="definition-zone">
+        <div class="inner">
+            <span class="word">{{ word.word }}</span> 
+
+            {% if word.pos %}
+            <div class="pos"> {{word.pos}}{{"" if word.pos.endswith("]") else "."}} </div>
+            {% endif %}
+
+            <div class="definition-and-example">
+                <div class="definition"> {{word.definition}} </div>
+                <div class="example">"{{word.example}}"</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="attribution">
+        <div class="explanation">
+            [These words are invented, defined and used by a machine learning algorithm]
+        </div>
+        <div class="primary-attribution">
+            <div> Model and site by <a href="https://twitter.com/turtlesoupy">Thomas Dimson</a> </div>
+            <div> Want to define a word you made up? Check out <a href="https://twitter.com/robo_define">@robo_define</a>
+        </div>
+
+        <div class="secondary-attribution">
+            <div> Special thanks to <a href="http://pamelachen.com/"> Pamela Chen </a> for early model feedback </div>
+            <div> Source code <a href="https://github.com/turtlesoupy/title-maker-pro">is available on Github</a>
+            <div> Based on <a href="https://openai.com/blog/better-language-models/">OpenAI's GPT-2 Model</a> </div>
+        </div>
+    </div>
+</body>
+</html>
