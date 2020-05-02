@@ -2,6 +2,8 @@ import jinja2
 import aiohttp_jinja2
 from aiohttp import web
 import words
+import sys
+import argparse
 
 routes = web.RouteTableDef()
 word_index = words.WordIndex.load("./data/words.json")
@@ -18,7 +20,7 @@ async def favicon(request):
     return web.FileResponse("./static/favicon.ico")
 
 
-def app():
+def app(argv):
     app = web.Application()
     app.add_routes(routes)
     app.add_routes([web.static("/static", "./static")])
@@ -27,4 +29,7 @@ def app():
 
 
 if __name__ == "__main__":
-    web.run_app(app())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--path", type=str, help="Unix socket path")
+    args = parser.parse_args()
+    web.run_app(app(sys.argv), path=args.path)
