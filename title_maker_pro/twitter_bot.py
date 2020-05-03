@@ -20,23 +20,6 @@ logger = logging.getLogger(__name__)
 MAX_TWEET_LENGTH = 250
 
 
-@dataclass
-class BotState:
-    path: str
-    last_processed_id: Optional[int] = None
-
-    @classmethod
-    def read_from(cls, path):
-        with open(path) as f:
-            j = json.load(f)
-
-        return cls(last_processed_id=j["last_processed_id"], path=path,)
-
-    def write(self):
-        with open(self.path, "w") as f:
-            json.dump({"last_processed_id": self.last_processed_id}, f)
-
-
 class WordGenerator:
     def __init__(self, forward_model_path, inverse_model_path, blacklist_path, device=None):
         if not device:
@@ -263,12 +246,12 @@ def tweet_wotd(me, api, word_generator):
     logger.info(f"Tweeted {wotd_text}")
 
 
-def bot_loop(bot_state, me, api, word_generator):
+def bot_loop(me, api, word_generator, last_processed_id):
     fetch_count = 200
     while True:
         logger.debug("Querying...")
         items = list(
-            reversed(api.mentions_timeline(since_id=bot_state.last_processed_id, count=fetch_count, include_rts=0))
+            reversed(api.mentions_timeline(since_id=last_processed_id, count=fetch_count, include_rts=0))
         )
 
         logger.debug(f"Starting {len(items)} items to reply to!")
@@ -301,10 +284,19 @@ def bot_loop(bot_state, me, api, word_generator):
                 logger.warning(f"Reply to {status.id} (@{status.author.screen_name}) too long... truncating: {reply}")
                 reply = reply[:MAX_TWEET_LENGTH]
             api.update_status(reply, in_reply_to_status_id=status.id)
-            bot_state.last_processed_id = status.id
-            bot_state.write()
+            last_processed_id = status.id
 
         time.sleep(15)
+
+
+def _fetch_last_processed_id(api, app_name):
+    items = api.user_timeline(count=100)
+    return next(
+        e.in_reply_to_status_id 
+        for e in items 
+        if e.source == app_name
+        and e.in_reply_to_status_id is not None
+    )
 
 
 def main(args):
@@ -312,6 +304,7 @@ def main(args):
     api_secret = os.environ.get("TWITTER_API_SECRET")
     access_token = os.environ.get("TWITTER_ACCESS_TOKEN")
     access_secret = os.environ.get("TWITTER_ACCESS_SECRET")
+    app_name = os.environ.get("TWITTER_APP_NAME")
 
     if not api_key:
         raise RuntimeError("Missing TWITTER_API_KEY environment variable")
@@ -321,6 +314,8 @@ def main(args):
         raise RuntimeError("Missing TWITTER_ACCESS_TOKEN environment variable")
     if not access_secret:
         raise RuntimeError("Missing TWITTER_ACCESS_SECRET environment variable")
+    if not app_name:
+        raise RuntimeError("Missing TWITTER_APP_NAME environment variable")
 
     stanza.download("en")
 
@@ -360,29 +355,24 @@ def main(args):
         logger.info("Tweeting WOTD")
         tweet_wotd(me, api, word_generator)
     else:
-        if not args.state_file:
-            raise RuntimeError("State mode must be specified")
-
-        state_exists = os.path.exists(args.state_file)
-        if not state_exists and not args.bootstrap:
-            raise RuntimeError(f"Missing state file at {args.state_file}... did you mean to bootstrap?")
-        elif state_exists and args.bootstrap:
-            raise RuntimeError(f"Bootstrap specified and state file exists at {args.state_file}")
-        elif args.bootstrap:
-            bot_state = BotState(path=args.state_file)
-        else:
-            bot_state = BotState.read_from(args.state_file)
-
-        logger.info("Entering bot loop")
-        bot_loop(bot_state, me, api, word_generator)
+        try:
+            last_processed_id = _fetch_last_processed_id(api, app_name)
+        except StopIteration:
+            if args.bootstrap:
+                logger.warning("Bootstrapping bot with no last replied to id")
+                last_processed_id = None
+            else:
+                raise RuntimeError("Unable to determine last replied to id")
+            
+        logger.info(f"Entering bot loop - starting from {last_processed_id}")
+        bot_loop(me, api, word_generator, last_processed_id)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run a twitter bot that replies to tweets with definitions")
     parser.add_argument(
-        "--bootstrap", help="Whether to create the state file, otherwise it is required", action="store_true",
+        "--bootstrap", help="Whether this is the first time we are starting the bot (no replies)", action="store_true",
     )
-    parser.add_argument("--state-file", type=str, help="Path to the state file")
     parser.add_argument(
         "--device", help="Force a certain device (cuda / cpu)", type=str,
     )

@@ -1,0 +1,31 @@
+FROM ubuntu:18.04
+
+RUN \
+  apt-get update && \
+  apt-get install -y vim && \
+  apt-get install -y software-properties-common && \
+  apt-get install -y curl
+
+
+RUN \
+  curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+  bash Miniconda3-latest-Linux-x86_64.sh -p /miniconda -b && \
+  rm Miniconda3-latest-Linux-x86_64.sh
+ 
+ENV PATH=/miniconda/bin:${PATH}
+
+RUN conda update -y conda
+
+WORKDIR /app
+
+COPY ./environment.yml environment.yml
+RUN conda env create -f environment.yml
+
+# Stanza implicitly downloads models 
+RUN [ "/bin/bash", "-c", "source activate company_makeup && python -c 'import stanza; stanza.download(\"en\")'" ]
+RUN [ "/bin/bash", "-c", "source activate company_makeup && python -c 'from transformers import AutoTokenizer; AutoTokenizer.from_pretrained(\"gpt2\")'"]
+
+COPY ./build build
+COPY ./title_maker_pro title_maker_pro
+
+ENTRYPOINT ["/bin/bash", "-c", "source activate company_makeup && source build/env_vars.sh && python title_maker_pro/twitter_bot.py --forward-model-path build/forward-dictionary-model --inverse-model-path build/inverse-dictionary-model --blacklist-path build/blacklist.pickle"]
