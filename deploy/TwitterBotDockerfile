@@ -16,16 +16,20 @@ ENV PATH=/miniconda/bin:${PATH}
 
 RUN conda update -y conda
 
+COPY ./build build
+WORKDIR /app/build
+RUN curl https://storage.googleapis.com/title-maker-pro-staging/forward-dictionary-model-v1.tar.gz | tar -xz
+RUN curl https://storage.googleapis.com/title-maker-pro-staging/inverse-dictionary-model-v1.tar.gz | tar -xz
 WORKDIR /app
 
-COPY ./environment.yml environment.yml
-RUN conda env create -f environment.yml
+COPY ./cpu_deploy_environment.yml .
+RUN conda env create -f cpu_deploy_environment.yml
 
 # Stanza implicitly downloads models 
-RUN [ "/bin/bash", "-c", "source activate company_makeup && python -c 'import stanza; stanza.download(\"en\")'" ]
-RUN [ "/bin/bash", "-c", "source activate company_makeup && python -c 'from transformers import AutoTokenizer; AutoTokenizer.from_pretrained(\"gpt2\")'"]
+RUN [ "/bin/bash", "-c", "source activate title_maker_pro && python -c 'import stanza; stanza.download(\"en\")'" ]
+RUN [ "/bin/bash", "-c", "source activate title_maker_pro && python -c 'from transformers import AutoTokenizer; AutoTokenizer.from_pretrained(\"gpt2\")'"]
 
-COPY ./build build
 COPY ./title_maker_pro title_maker_pro
+COPY ./build build
 
-ENTRYPOINT ["/bin/bash", "-c", "source activate company_makeup && source build/env_vars.sh && python title_maker_pro/twitter_bot.py --forward-model-path build/forward-dictionary-model --inverse-model-path build/inverse-dictionary-model --blacklist-path build/blacklist.pickle"]
+ENTRYPOINT ["/bin/bash", "-c", "source activate title_maker_pro && source build/env_vars.sh && python title_maker_pro/twitter_bot.py --forward-model-path build/forward-dictionary-model-v1 --inverse-model-path build/inverse-dictionary-model-v1 --blacklist-path build/blacklist.pickle"]
