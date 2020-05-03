@@ -1,0 +1,20 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: twitterbot-wotd-cron-job
+  namespace: default
+spec:
+  schedule: "*/2 * * * *" 
+  startingDeadlineSeconds: 120
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    template:
+      metadata:
+        labels:
+          run: website
+      spec:
+        containers:
+        - image: gcr.io/this-word-does-not-exist/twitterbot-wotd:v1
+          imagePullPolicy: IfNotPresent
+          name: website
+        restartPolicy: OnFailure
