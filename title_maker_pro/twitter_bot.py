@@ -1,19 +1,15 @@
 import re
-import json
 import os
 import time
 import argparse
 import tweepy
 import torch
-import pickle
-import itertools
 import datasets
 import logging
 import stanza
 import random
 from transformers import AutoModelWithLMHead, AutoTokenizer
-from dataclasses import dataclass
-from typing import Optional
+import modeling
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +17,7 @@ MAX_TWEET_LENGTH = 250
 
 
 class WordGenerator:
-    def __init__(self, forward_model_path, inverse_model_path, blacklist_path, device=None):
+    def __init__(self, forward_model_path, inverse_model_path, blacklist_path, quantize=False, device=None):
         if not device:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
@@ -42,12 +38,17 @@ class WordGenerator:
         self.tokenizer.add_special_tokens(datasets.SpecialTokens.special_tokens_dict())
         logger.info("Loaded tokenizer")
 
+        ml = modeling.load_model
+        if quantize:
+            ml = modeling.load_quantized_model
+            logger.info(f"Peforming quantization on models")
+
         logger.info(f"Loading forward model from {forward_model_path}")
-        self.forward_model = AutoModelWithLMHead.from_pretrained(forward_model_path).to(self.device)
+        self.forward_model = ml(AutoModelWithLMHead, forward_model_path).to(self.device)
         logger.info("Loaded forward model")
 
         logger.info(f"Loading inverse model from {inverse_model_path}")
-        self.inverse_model = AutoModelWithLMHead.from_pretrained(inverse_model_path).to(self.device)
+        self.inverse_model = ml(AutoModelWithLMHead, inverse_model_path).to(self.device)
         logger.info("Loaded inverse model")
 
         self.approx_max_length = 250
@@ -250,9 +251,7 @@ def bot_loop(me, api, word_generator, last_processed_id):
     fetch_count = 200
     while True:
         logger.debug("Querying...")
-        items = list(
-            reversed(api.mentions_timeline(since_id=last_processed_id, count=fetch_count, include_rts=0))
-        )
+        items = list(reversed(api.mentions_timeline(since_id=last_processed_id, count=fetch_count, include_rts=0)))
 
         logger.debug(f"Starting {len(items)} items to reply to!")
 
@@ -291,12 +290,7 @@ def bot_loop(me, api, word_generator, last_processed_id):
 
 def _fetch_last_processed_id(api, app_name):
     items = api.user_timeline(count=100)
-    return next(
-        e.in_reply_to_status_id 
-        for e in items 
-        if e.source == app_name
-        and e.in_reply_to_status_id is not None
-    )
+    return next(e.in_reply_to_status_id for e in items if e.source == app_name and e.in_reply_to_status_id is not None)
 
 
 def main(args):
@@ -347,6 +341,7 @@ def main(args):
         forward_model_path=args.forward_model_path,
         inverse_model_path=args.inverse_model_path,
         blacklist_path=args.blacklist_path,
+        quantize=args.quantize,
     )
 
     me = api.me()
@@ -363,7 +358,7 @@ def main(args):
                 last_processed_id = None
             else:
                 raise RuntimeError("Unable to determine last replied to id")
-            
+
         logger.info(f"Entering bot loop - starting from {last_processed_id}")
         bot_loop(me, api, word_generator, last_processed_id)
 
@@ -381,6 +376,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--blacklist-path", help="Blacklist path for word generation", type=str, required=True,
     )
+    parser.add_argument("--quantize", help="Perform quantization for models", action="store_true")
     parser.add_argument("--log-file", type=str, help="Log to this file")
     parser.add_argument("--wotd-mode", action="store_true", help="Tweet a word of the day and quit")
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
