@@ -28,8 +28,7 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # Expose ports.
-EXPOSE 80
-EXPOSE 443
+EXPOSE 8080
 
 ENTRYPOINT ["supervisord"]
 # ENTRYPOINT ["/bin/bash"]

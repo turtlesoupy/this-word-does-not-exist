@@ -1,0 +1,11 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: basic-ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: "frontend-ip"
+    networking.gke.io/managed-certificates: website-certificate-www
+spec:
+  backend:
+    serviceName: website
+    servicePort: 8080

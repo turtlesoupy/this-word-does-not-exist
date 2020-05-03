@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: website
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      run: website
+  template:
+    metadata:
+      labels:
+        run: website
+    spec:
+      containers:
+      - image: gcr.io/this-word-does-not-exist/website:v4
+        imagePullPolicy: IfNotPresent
+        name: website
+        ports:
+        - containerPort: 8080
+          protocol: TCP
