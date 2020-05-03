@@ -1,3 +1,3 @@
-FROM gcr.io/this-word-does-not-exist/twitter-bot:v2
+FROM gcr.io/this-word-does-not-exist/twitter-bot:v5
 
-ENTRYPOINT ["/bin/bash", "-c", "source activate company_makeup && source build/env_vars.sh && python title_maker_pro/twitter_bot.py --forward-model-path build/forward-dictionary-model --inverse-model-path build/inverse-dictionary-model --blacklist-path build/blacklist.pickle --wotd-mode"]
+ENTRYPOINT ["/bin/bash", "-c", "source activate title_maker_pro && source build/env_vars.sh && python title_maker_pro/twitter_bot.py --forward-model-path build/forward-dictionary-model --inverse-model-path build/inverse-dictionary-model --blacklist-path build/blacklist.pickle --wotd-mode"]

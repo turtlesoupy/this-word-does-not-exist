@@ -8,13 +8,14 @@ spec:
   startingDeadlineSeconds: 120
   concurrencyPolicy: Forbid
   jobTemplate:
-    template:
-      metadata:
-        labels:
-          run: website
-      spec:
-        containers:
-        - image: gcr.io/this-word-does-not-exist/twitterbot-wotd:v1
-          imagePullPolicy: IfNotPresent
-          name: website
-        restartPolicy: OnFailure
+    spec:
+      template:
+        metadata:
+          labels:
+            run: website
+        spec:
+          containers:
+          - image: gcr.io/this-word-does-not-exist/twitter-bot-wotd:v5
+            imagePullPolicy: IfNotPresent
+            name: website
+          restartPolicy: OnFailure
