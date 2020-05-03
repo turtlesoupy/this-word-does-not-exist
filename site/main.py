@@ -20,7 +20,7 @@ async def favicon(request):
     return web.FileResponse("./static/favicon.ico")
 
 
-def app(argv):
+def app(argv=()):
     app = web.Application()
     app.add_routes(routes)
     app.add_routes([web.static("/static", "./static")])

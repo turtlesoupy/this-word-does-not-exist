@@ -4,6 +4,20 @@ body {
   font-family: "SF Pro Text","Helvetica Neue",-apple-system,BlinkMacSystemFont,"Helvetica","Segoe UI","Arial",sans-serif;
 }
 
+a {
+    color: gray;
+    text-decoration: none;
+}
+
+a:visited {
+    color: gray;
+    text-decoration: none;
+}
+
+a:hover {
+    color: hotpink;
+}
+
 .warning {
   text-align: center;
   font-size: 8px;
@@ -18,10 +32,12 @@ body {
   margin-right: auto;
   width: 100vw;
   height: 70vh;
-  min-height: 70vh;
   display: table-cell;
-  vertical-align: middle
+  vertical-align: middle;
+  color: white;
 }
+
+
 
 .definition-zone .word {
   font-weight: bold;
@@ -41,6 +57,26 @@ body {
   margin-right: auto;
   width: 60vw;
   max-width: 600px;
+}
+
+
+@media only screen and (orientation : portrait)  {
+    .definition-zone {
+        height: 55vh;
+    }
+    .definition-zone .word {
+        font-size: 2.5em;
+    }
+
+    .definition-zone .pos {
+        font-size: small;
+    }
+
+    .definition-and-example {
+        width: 90vw;
+        max-width: 90vw;
+    }
+
 }
 
 .example {
