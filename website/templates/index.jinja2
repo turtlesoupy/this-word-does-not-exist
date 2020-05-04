@@ -8,9 +8,21 @@
   <meta name="description" content="This Word Does Not Exist uses an artificial intelligence model named GPT-2 to invent new words in the English language.">
   <meta name="author" content="Thomas Dimson">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:site" content="@robo_define">
+  <meta name="twitter:creator" content="@turtlesoupy">
+  <meta name="twitter:image" content="https://www.thisworddoesnotexist.com/static/twitter_card.png">
+  <meta name="twitter:description" content="We use artificial intelligence to generate, define and use new English words. One might call it perfectly cromulent">
+  <meta property="og:url" content="https://www.thisworddoesnotexist.com">
+  <meta property="og:title" content="This Word Does Not Exist">
+  <meta property="description" content="This Word Does Not Exist uses an artificial intelligence model named GPT-2 to invent new words in the English language.">
+
+
+
   <link rel="stylesheet" href="static/index.css">
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=UA-25938904-2"></script>
+  <script type="text/javascript" async src="https://platform.twitter.com/widgets.js"></script>
   <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
@@ -40,6 +52,9 @@
     </div>
 
     <div class="attribution">
+        <div class="actions">
+            <a href="/">Want another word?</a>
+        </div>
         <div class="explanation">
             Words are invented, defined and used by a machine learning algorithm
         </div>
@@ -49,9 +64,11 @@
         </div>
 
         <div class="secondary-attribution">
-            <div> Special thanks to <a href="http://pamelachen.com/">Pamela Chen</a> for early model feedback </div>
+            <div> Thanks to <a href="http://pamelachen.com/">Pamela Chen</a> for model feedback </div>
             <div> Source code <a href="https://github.com/turtlesoupy/title-maker-pro">is available on Github</a>
             <div> Based on <a href="https://openai.com/blog/better-language-models/">OpenAI's GPT-2 Model</a> </div>
+            {% set url = 'https://www.thisworddoesnotexist.com' %}
+            <div> Smash that <a href="https://twitter.com/intent/tweet?url={{url|quote_plus}}">Tweet button</a></div>
         </div>
     </div>
 </body>

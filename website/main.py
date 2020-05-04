@@ -4,6 +4,7 @@ from aiohttp import web
 import words
 import sys
 import argparse
+from urllib.parse import quote_plus
 
 routes = web.RouteTableDef()
 word_index = words.WordIndex.load("./data/words.json")
@@ -24,7 +25,13 @@ def app(argv=()):
     app = web.Application()
     app.add_routes(routes)
     app.add_routes([web.static("/static", "./static")])
-    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader("./templates"))
+    aiohttp_jinja2.setup(
+        app, 
+        loader=jinja2.FileSystemLoader("./templates"),
+        filters={
+            'quote_plus': quote_plus
+        },
+    )
     return app
 
 

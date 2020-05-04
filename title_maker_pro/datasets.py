@@ -14,6 +14,7 @@ from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
 from typing import NamedTuple, List, Optional
 from io import StringIO
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -293,6 +294,47 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
         ((tag, _),) = uposes.most_common(1)
         return tag
+
+    @classmethod
+    def evaluate_creativity(cls, tokenizer, model, blacklist, num_to_generate, batch_size, max_length):
+        input = tokenizer.encode(SpecialTokens.BOS_TOKEN, return_tensors="pt").to(model.device)
+        split_re = cls._split_re()
+        num_generated = 0
+        num_failed_match = 0
+        num_succeeded_match = 0
+        num_blacklisted = 0
+
+        for i in tqdm(list(range(0, num_to_generate, batch_size)), desc="Evaluating Creativity"):
+            generated = model.generate(
+                input,
+                max_length=max_length,
+                num_return_sequences=batch_size,
+                do_sample=True,
+                pad_token_id=tokenizer.pad_token_id,
+                bos_token_id=tokenizer.bos_token_id,
+                eos_token_id=tokenizer.eos_token_id,
+            )
+
+            for i in range(generated.size()[0]):
+                sentence_tokens = generated[i, :].tolist()
+                num_generated += 1
+                decoded = tokenizer.decode(sentence_tokens)
+                m = split_re.match(decoded)
+                if not m:
+                    num_failed_match += 1
+                    continue
+
+                num_succeeded_match += 1
+                title = m.group("title")
+                if blacklist and blacklist.contains(title):
+                    num_blacklisted += 1
+        
+        return {
+            "creative_words": 1 - (num_blacklisted / max(num_succeeded_match,  1)),
+            "nonconforming": num_failed_match / num_generated
+        }
+
+
 
     @classmethod
     def generate_words(
