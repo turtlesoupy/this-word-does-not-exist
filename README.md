@@ -1,6 +1,6 @@
-# Title Maker Pro 2000
+# This Word Does Not Exist
 
-Title Maker Pro 2000 is a project allows 
+This is a project allows 
 people to train a variant of GPT-2 that makes
 up words, definitions and examples from scratch. 
 
