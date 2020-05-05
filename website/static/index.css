@@ -2,6 +2,7 @@ body {
   background: #08082d;
   color: white;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.021em;
 }
 
 a {
@@ -70,7 +71,7 @@ a.darken:hover img {
 }
 .definition-zone ol li {
     margin-bottom: 20px;
-    color: #777;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .definition-section {
@@ -97,19 +98,19 @@ a.darken:hover img {
 
 .definition-zone .pos {
   font-size: small;
-  color: #777777;
+  color: rgba(255, 255, 255, 0.5);
   margin-left: 0.1em;
 }
 
 .example {
     margin-top: 0.25em;
     font-style: italic;
-    color: #777777;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .attribution {
-    font-size: small;
-    width: 100%;
+   font-size: small;
+   width: 100%;
    position: fixed;
    bottom: 10px;
 }
@@ -129,5 +130,16 @@ a.darken:hover img {
 
     .definition-zone {
         margin-top: 10vh;
+    }
+}
+
+@media screen and (max-height: 550px) {
+    .definition-zone {
+        height: auto;
+    }
+
+    .attribution {
+        width: 100%;
+        position: static;
     }
 }
