@@ -16,7 +16,6 @@ from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
 from typing import NamedTuple, List, Optional
 from io import StringIO
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -349,12 +348,12 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         num=100,
         max_iterations=10,
         generation_args={},
-        blacklist=(),
+        blacklist=None,
         example_match_pos_pipeline=None,
         dedupe_titles=True,
         user_filter=None,
         filter_proper_nouns=False,
-        use_custom_generate=False,
+        use_custom_generate=True,
     ):
         ret = []
         num_iteration = 0
@@ -371,7 +370,6 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         split_re = cls._split_re()
         seen_titles = set()
         stats = cls.GenerationStats()
-        pbar = tqdm(total=num)
         while len(ret) < num and num_iteration < max_iterations:
             num_iteration += 1
             stats.num_iterations += 1
@@ -387,10 +385,9 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
                 def partial_generation_transform(input_ids, tokens_to_add):
                     for i in range(tokens_to_add.size()[0]):
-                        if tokens_to_add[i] in (pos_sep_id, topic_sep_id, definition_sep_id):
+                        if blacklist and tokens_to_add[i] in (pos_sep_id, topic_sep_id, definition_sep_id):
                             word = tokenizer.decode(input_ids[i, :][1:])
-                            in_blacklist = blacklist.contains(word)
-                            if in_blacklist:
+                            if blacklist.contains(word):
                                 tokens_to_add[i] = tokenizer.eos_token_id
                         elif tokens_to_add[i] == tokenizer.eos_token_id:
                             example_token_idxs = input_ids[i, :] == example_sep_id
@@ -482,7 +479,6 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                 else:
                     ret.append(generated_word)
                     seen_titles.add(generated_word.word.lower())
-                    pbar.update()
 
         stats.num_returned = len(ret)
         return ret[:num], stats

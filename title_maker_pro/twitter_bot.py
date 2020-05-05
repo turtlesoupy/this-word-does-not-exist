@@ -86,6 +86,7 @@ class WordGenerator:
             dedupe_titles=False,
             user_filter=user_filter,
             filter_proper_nouns=False,
+            use_custom_generate=True,
         )
 
         logger.debug(stats)
