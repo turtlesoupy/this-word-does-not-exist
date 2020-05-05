@@ -89,7 +89,7 @@ class WordGenerator:
             use_custom_generate=True,
         )
 
-        logger.debug(stats)
+        logger.info(f"Generation stats: {stats}")
 
         if expanded:
             return expanded[0]
