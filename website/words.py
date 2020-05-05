@@ -2,8 +2,7 @@ import json
 import random
 
 from dataclasses import dataclass
-from typing import Optional
-
+from typing import Optional, List
 
 @dataclass
 class Word:
@@ -13,6 +12,7 @@ class Word:
     pos: Optional[str]
     topic: Optional[str]
     example: Optional[str]
+    syllables: Optional[List[str]]
 
     @classmethod
     def from_dict(cls, d):
@@ -22,6 +22,7 @@ class Word:
             pos=d["pos"] if "pos" in d else None,
             topic=d["topic"] if "topic" in d else None,
             example=d["example"] if "example" in d else None,
+            syllables=d["syllables"] if "syllables" in d else None,
         )
 
     def to_dict(self):
@@ -31,6 +32,7 @@ class Word:
             "pos": self.pos,
             "topic": self.topic,
             "example": self.example,
+            "syllables": self.syllables,
         }
 
 

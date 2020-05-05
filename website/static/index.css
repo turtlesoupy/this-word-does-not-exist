@@ -1,16 +1,16 @@
 body {
-  background: black;
+  background: #08082d;
   color: white;
-  font-family: "SF Pro Text","Helvetica Neue",-apple-system,BlinkMacSystemFont,"Helvetica","Segoe UI","Arial",sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 a {
-    color: gray;
+    color: #51b8b8;
     text-decoration: none;
 }
 
 a:visited {
-    color: gray;
+    color: #51b8b8;
     text-decoration: none;
 }
 
@@ -18,87 +18,116 @@ a:hover {
     color: hotpink;
 }
 
-.warning {
-  text-align: center;
-  font-size: 8px;
+.site-wrapper {
+    width: 450px;
+    margin: auto;
+    padding: 10px;
 }
 
+.intro::after {
+  content: "";
+  clear: both;
+  display: table;
+}
+
+.intro-left {
+    float: left;
+}
+
+.intro-right {
+    float: right;
+}
+
+.intro-tweet-button {
+    width: 60px;
+}
+
+a.darken {
+    display: inline-block;
+    background: black;
+    padding: 0;
+}
+
+a.darken img {
+    display: block;
+}
+
+a.darken:hover img {
+    opacity: 0.7;
+}
 
 .definition-zone {
-  text-align: center;
-  margin-top: 50px;
+  margin-top: 20vh;
   margin-bottom: 50px;
   margin-left: auto;
   margin-right: auto;
-  width: 100vw;
-  height: 70vh;
-  display: table-cell;
-  vertical-align: middle;
+  height: 50vh;
   color: white;
 }
 
+.definition-zone ol {
+    padding-inline-start: 20px;
+}
+.definition-zone ol li {
+    margin-bottom: 20px;
+    color: #777;
+}
 
+.definition-section {
+    margin-left: 5px;
+    color: white;
+}
+
+.definition-zone .syllables {
+    font-weight: bold;
+    margin-bottom: 0.15em;
+    margin-left: 0.1em;
+}
+
+.syllable-separator {
+    margin-left: 0.5em;
+    margin-right: 0.5em;
+}
 
 .definition-zone .word {
   font-weight: bold;
   font-size: 4em;
+  margin-bottom: 0.15em;
 }
 
 .definition-zone .pos {
-  margin-bottom: 8px;
-  margin-top: 8px;
   font-size: small;
-}
-
-.definition-and-example {
-  font-size: 1em;
-  margin-top: 1em;
-  margin-left: auto;
-  margin-right: auto;
-  width: 60vw;
-  max-width: 600px;
-}
-
-
-@media only screen and (orientation : portrait)  {
-    .definition-zone {
-        height: 55vh;
-    }
-    .definition-zone .word {
-        font-size: 2.5em;
-    }
-
-    .definition-zone .pos {
-        font-size: small;
-    }
-
-    .definition-and-example {
-        width: 90vw;
-        max-width: 90vw;
-    }
-
+  color: #777777;
+  margin-left: 0.1em;
 }
 
 .example {
     margin-top: 0.25em;
     font-style: italic;
+    color: #777777;
 }
 
 .attribution {
     font-size: small;
     width: 100%;
-    text-align: center;
+   position: fixed;
+   bottom: 10px;
 }
 
-.explanation {
-    margin-bottom: 0.5em;
+.attribution-section {
+    margin-bottom: 0.2em;
 }
 
-.actions {
-    margin-bottom: 0.5em;
-}
+@media only screen and (orientation : portrait)  {
+    .site-wrapper {
+        width: 95%;
+    }
 
-.secondary-attribution {
-    margin-top: 8px;
-    font-size: x-small;
+    .definition-zone .word {
+        font-size: 2.5em;
+    }
+
+    .definition-zone {
+        margin-top: 10vh;
+    }
 }

@@ -32,43 +32,76 @@
 </head>
 
 <body>
-    <div class="warning">
-      This word does not exist:
-    </div>
+    <div class="site-wrapper">
+        <div class="intro">
+            <div class="intro-left">
+            &#x1f916; &#x1F4D6;
+            </div>
 
-    <div class="definition-zone">
-        <div class="inner">
-            <span class="word">{{ word.word }}</span> 
-
-            {% if word.pos %}
-            <div class="pos"> {{word.pos}}{{"" if word.pos.endswith("]") else "."}} </div>
-            {% endif %}
-
-            <div class="definition-and-example">
-                <div class="definition"> {{word.definition}} </div>
-                <div class="example">"{{word.example}}"</div>
+            <div class="intro-right"> 
+                {% set url = 'https://www.thisworddoesnotexist.com' %}
+                <a class="darken" href="https://twitter.com/intent/tweet?url={{url|quote_plus}}">
+                    <img 
+                        class="intro-tweet-button" 
+                        srcset="static/tweet_button.png, static/tweet_button_2x.png 2x"
+                        src="static/tweet_button_2x.png" 
+                        alt="tweet">
+                        <div class="overlay"></div>
+                </a>
             </div>
         </div>
-    </div>
+        <div class="definition-zone">
+            <div class="inner">
+                {% if word.pos %}
+                <div class="pos"> {{word.pos}}{{"" if word.pos.endswith("]") else "."}} </div>
+                {% endif %}
 
-    <div class="attribution">
-        <div class="actions">
-            <a href="/">Want another word?</a>
-        </div>
-        <div class="explanation">
-            Words are invented, defined and used by a machine learning algorithm
-        </div>
-        <div class="primary-attribution">
-            <div> Model and site by <a href="https://twitter.com/turtlesoupy">Thomas Dimson</a> </div>
-            <div> Want to define a word you made up? Check out <a href="https://twitter.com/robo_define">@robo_define</a>
+                <div class="word">{{ word.word }}</div> 
+
+
+                {% if word.syllables and word.syllables|length > 1 %}
+                    <div class="syllables">
+                        {{"<span class='syllable-separator'>&middot;</span>".join(word.syllables) | safe}}
+                    </div>
+                {% endif %}
+
+                <ol>
+                    <li>
+                        <div class="definition-section">
+                            <div class="definition"> {{word.definition}} </div>
+                            <div class="example">"{{word.example}}"</div>
+                        </div>
+                    </li>
+
+                    <li>
+                        <div class="definition-section">
+                            a word that does not exist; one which is invented, defined and used by a machine learning algorithm. 
+                            <br />
+                            <a href="/">Generate another word &rarr;</a>
+                        </div>
+                    </li>
+                </ol>
+            </div>
         </div>
 
-        <div class="secondary-attribution">
-            <div> Thanks to <a href="http://pamelachen.com/">Pamela Chen</a> for model feedback </div>
-            <div> Source code <a href="https://github.com/turtlesoupy/title-maker-pro">is available on Github</a>
-            <div> Based on <a href="https://openai.com/blog/better-language-models/">OpenAI's GPT-2 Model</a> </div>
-            {% set url = 'https://www.thisworddoesnotexist.com' %}
-            <div> Smash that <a href="https://twitter.com/intent/tweet?url={{url|quote_plus}}">Tweet button</a></div>
+        <div class="attribution">
+            <div class="attribution-section">
+                Created by <a href="https://twitter.com/turtlesoupy">Thomas Dimson</a>
+            </div>
+
+            <div class="attribution-section">
+                Define your own word <a href="https://twitter.com/robo_define">@robo_define</a>
+            </div>
+
+            <div class="attribution-section"> 
+                Source code <a href="https://github.com/turtlesoupy/title-maker-pro">available</a>
+                and based on 
+                <a href="https://openai.com/blog/better-language-models/"> GPT-2</a>
+            </div>
+
+            <div class="attribution-section"> 
+                Thanks to <a href="http://pamelachen.com/">Pamela Chen</a> and <a href="http://rourkery.com/">Ryan O'Rourke</a>
+            </div>
         </div>
     </div>
 </body>

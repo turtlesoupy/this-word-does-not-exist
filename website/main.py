@@ -13,7 +13,8 @@ word_index = words.WordIndex.load("./data/words.json")
 @routes.get("/")
 @aiohttp_jinja2.template("index.jinja2")
 async def index(request):
-    return {"word": word_index.random()}
+    w = word_index.random()
+    return {"word": w}
 
 
 @routes.get("/favicon.ico")

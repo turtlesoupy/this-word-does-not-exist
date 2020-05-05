@@ -368,6 +368,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         split_re = cls._split_re()
         seen_titles = set()
         stats = cls.GenerationStats()
+        pbar = tqdm(total=num)
         while len(ret) < num and num_iteration < max_iterations:
             num_iteration += 1
             stats.num_iterations += 1
@@ -485,6 +486,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                             w.from_example_expansion = True
                             ret.append(w)
                             seen_titles.add(title.strip().lower())
+                            pbar.update()
                         else:
                             continue
                     else:
@@ -496,6 +498,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                 else:
                     ret.append(generated_word)
                     seen_titles.add(generated_word.word.lower())
+                    pbar.update()
 
         stats.num_returned = len(ret)
         return ret[:num], stats
