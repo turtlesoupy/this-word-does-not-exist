@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+import time
 import os
 import logging
 import pickle
 import hashlib
 import itertools
+import custom_modeling_utils
 import dictionary_definition
 import re
 import torch
@@ -243,6 +245,8 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         num_example_expansion_hail_maries: int = 0
         num_user_filtered: int = 0
         num_returned: int = 0
+        num_example_pos_match_failed: int = 0
+        num_example_missing_title: int = 0
 
         def __str__(self):
             return f"iterations={self.num_iterations} | " + ", ".join(
@@ -253,6 +257,8 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     ("blacklist_filtered", self.num_blacklist_filtered),
                     ("seen_filtered", self.num_seen_filtered),
                     ("proper_noun_filtered", self.num_proper_noun_filtered),
+                    ("example_missing_title", self.num_example_missing_title),
+                    ("example_pos_match_failed", self.num_example_pos_match_failed),
                     ("example_filtered", self.num_example_filtered),
                     ("example_expansions", self.num_example_expansions),
                     ("example_expansion_success", self.num_example_expansions_successful),
@@ -354,6 +360,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         hail_mary_example=False,
         user_filter=None,
         filter_proper_nouns=False,
+        use_custom_generate=False,
     ):
         ret = []
         num_iteration = 0
@@ -372,13 +379,43 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         while len(ret) < num and num_iteration < max_iterations:
             num_iteration += 1
             stats.num_iterations += 1
-            generated = model.generate(
-                input,
-                pad_token_id=tokenizer.pad_token_id,
-                bos_token_id=tokenizer.bos_token_id,
-                eos_token_id=tokenizer.eos_token_id,
-                **generation_args,
-            )
+            if not use_custom_generate:
+                generated = model.generate(
+                    input,
+                    pad_token_id=tokenizer.pad_token_id,
+                    bos_token_id=tokenizer.bos_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                    **generation_args,
+                )
+            else:
+                pos_sep_id = tokenizer.encode(SpecialTokens.POS_SEP)[0]
+                example_sep_id = tokenizer.encode(SpecialTokens.EXAMPLE_SEP)[0]
+                topic_sep_id = tokenizer.encode(SpecialTokens.TOPIC_SEP)[0]
+                definition_sep_id = tokenizer.encode(SpecialTokens.DEFINITION_SEP)[0]
+
+                def partial_generation_transform(input_ids, tokens_to_add):
+                    for i in range(tokens_to_add.size()[0]):
+                        if tokens_to_add[i] in (pos_sep_id, topic_sep_id, definition_sep_id):
+                            word = tokenizer.decode(input_ids[i, :][1:])
+                            in_blacklist = blacklist.contains(word)
+                            if in_blacklist:
+                                tokens_to_add[i] = tokenizer.eos_token_id
+                        elif tokens_to_add[i] == tokenizer.eos_token_id:
+                            example_token_idxs = input_ids[i, :] == example_sep_id
+                            if example_token_idxs.max() == 0:
+                                tokens_to_add[i] = example_sep_id
+
+                    return tokens_to_add
+
+                generated = custom_modeling_utils.custom_generate(
+                    model,
+                    input,
+                    pad_token_id=tokenizer.pad_token_id,
+                    bos_token_id=tokenizer.bos_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                    partial_generation_transform=partial_generation_transform,
+                    **generation_args,
+                )
 
             for i in range(generated.size()[0]):
                 if len(ret) >= num:
@@ -435,11 +472,14 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                             if pos_removed not in oed_to_upos:
                                 logger.warn(f"No UPOS mapping for {pos_removed} - {title} in '{example}'': {pos_guess}")
                                 pos_match_filter = True
+                                stats.num_example_pos_match_failed += 1
                             elif pos_guess not in oed_to_upos[pos_removed]:
                                 pos_match_filter = True
+                                stats.num_example_pos_match_failed += 1
 
                     except ValueError:
                         start_title_idx = None
+                        stats.num_example_missing_title += 1 
 
                 if not example or not example.strip() or not start_title_idx or pos_match_filter:
                     if do_example_expansion:
