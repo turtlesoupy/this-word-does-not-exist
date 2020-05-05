@@ -34,6 +34,13 @@ oed_to_upos = {
 }
 
 
+def _access_zero_assert(item):
+    if len(item) != 1:
+        raise RuntimeError("Expected length 1 in item")
+
+    return item[0]
+
+
 def _read_in_chunks(stream, chunk_size=1 * 1024 * 1024):
     while True:
         data = stream.read(chunk_size)
@@ -49,7 +56,6 @@ class GeneratedWord:
     topic: Optional[str]
     definition: str
     example: Optional[str]
-    from_example_expansion: bool = False
 
 
 class Blacklist:
@@ -238,11 +244,8 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         num_seen_filtered: int = 0
         num_proper_noun_filtered: int = 0
 
-        num_example_filtered: int = 0
+        num_example_missing: int = 0
 
-        num_example_expansions: int = 0
-        num_example_expansions_successful: int = 0
-        num_example_expansion_hail_maries: int = 0
         num_user_filtered: int = 0
         num_returned: int = 0
         num_example_pos_match_failed: int = 0
@@ -257,12 +260,9 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     ("blacklist_filtered", self.num_blacklist_filtered),
                     ("seen_filtered", self.num_seen_filtered),
                     ("proper_noun_filtered", self.num_proper_noun_filtered),
+                    ("example_missing", self.num_example_missing),
                     ("example_missing_title", self.num_example_missing_title),
                     ("example_pos_match_failed", self.num_example_pos_match_failed),
-                    ("example_filtered", self.num_example_filtered),
-                    ("example_expansions", self.num_example_expansions),
-                    ("example_expansion_success", self.num_example_expansions_successful),
-                    ("example_expansion_hail_maries", self.num_example_expansion_hail_maries),
                     ("user_filtered", self.num_user_filtered),
                     ("returned", self.num_returned),
                 )
@@ -334,13 +334,11 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                 title = m.group("title")
                 if blacklist and blacklist.contains(title):
                     num_blacklisted += 1
-        
+
         return {
-            "creative_words": 1 - (num_blacklisted / max(num_succeeded_match,  1)),
-            "nonconforming": num_failed_match / num_generated
+            "creative_words": 1 - (num_blacklisted / max(num_succeeded_match, 1)),
+            "nonconforming": num_failed_match / num_generated,
         }
-
-
 
     @classmethod
     def generate_words(
@@ -351,13 +349,9 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         num=100,
         max_iterations=10,
         generation_args={},
-        expansion_generation_overrides={},
         blacklist=(),
-        do_example_expansion=False,
-        num_expansion_candidates=10,
         example_match_pos_pipeline=None,
         dedupe_titles=True,
-        hail_mary_example=False,
         user_filter=None,
         filter_proper_nouns=False,
         use_custom_generate=False,
@@ -369,8 +363,10 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         else:
             input = torch.tensor([prefix], dtype=torch.long).to(model.device)
 
-        eos_token_ids = tokenizer.encode(SpecialTokens.EOS_TOKEN)
-        example_sep_ids = tokenizer.encode(SpecialTokens.EXAMPLE_SEP)
+        pos_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.POS_SEP))
+        example_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.EXAMPLE_SEP))
+        topic_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.TOPIC_SEP))
+        definition_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.DEFINITION_SEP))
 
         split_re = cls._split_re()
         seen_titles = set()
@@ -388,10 +384,6 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     **generation_args,
                 )
             else:
-                pos_sep_id = tokenizer.encode(SpecialTokens.POS_SEP)[0]
-                example_sep_id = tokenizer.encode(SpecialTokens.EXAMPLE_SEP)[0]
-                topic_sep_id = tokenizer.encode(SpecialTokens.TOPIC_SEP)[0]
-                definition_sep_id = tokenizer.encode(SpecialTokens.DEFINITION_SEP)[0]
 
                 def partial_generation_transform(input_ids, tokens_to_add):
                     for i in range(tokens_to_add.size()[0]):
@@ -456,10 +448,12 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     stats.num_proper_noun_filtered += 1
                     continue
 
-                if example:
+                if not example or not example.strip():
+                    stats.num_example_missing += 1
+                    continue
+                else:
                     t_rstrip = title.strip().lower().rstrip("s")
                     l_example = example.lower()
-                    pos_match_filter = False
                     try:
                         start_title_idx = l_example.index(t_rstrip)
                         if pos and example_match_pos_pipeline:
@@ -471,68 +465,18 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
                             if pos_removed not in oed_to_upos:
                                 logger.warn(f"No UPOS mapping for {pos_removed} - {title} in '{example}'': {pos_guess}")
-                                pos_match_filter = True
                                 stats.num_example_pos_match_failed += 1
+                                continue
                             elif pos_guess not in oed_to_upos[pos_removed]:
-                                pos_match_filter = True
                                 stats.num_example_pos_match_failed += 1
+                                continue
 
                     except ValueError:
                         start_title_idx = None
-                        stats.num_example_missing_title += 1 
-
-                if not example or not example.strip() or not start_title_idx or pos_match_filter:
-                    if do_example_expansion:
-                        stats.num_example_expansions += 1
-                        eos_loc = max(
-                            i
-                            for i in range(len(sentence_tokens))
-                            if sentence_tokens[i : (i + len(eos_token_ids))] == eos_token_ids
-                        )
-                        example_prefix = sentence_tokens[:eos_loc]
-                        example_prefix.extend(example_sep_ids)
-
-                        expansion_generation_args = generation_args.copy()
-                        expansion_generation_args.update(expansion_generation_overrides)
-
-                        def do_expand_generate(prefix):
-                            words, _ = cls.generate_words(
-                                tokenizer,
-                                model,
-                                max_iterations=1,
-                                num=num_expansion_candidates,
-                                prefix=example_prefix,
-                                blacklist=blacklist,
-                                do_example_expansion=False,
-                                generation_args=expansion_generation_args,
-                                example_match_pos_pipeline=example_match_pos_pipeline,
-                                dedupe_titles=False,
-                                user_filter=user_filter,
-                                hail_mary_example=False,
-                            )
-                            return words
-
-                        more_words = do_expand_generate(example_prefix)
-                        if not more_words and hail_mary_example:
-                            more_words = do_expand_generate(example_prefix + tokenizer.encode(title))
-                            stats.num_example_expansion_hail_maries += 1
-
-                        more_words.sort(key=lambda x: len(x.example), reverse=True)
-
-                        if more_words:
-                            # TODO: Do I really want to prefer longer examples?
-                            w = more_words[len(more_words) // 2]
-                            stats.num_example_expansions_successful += 1
-                            w.from_example_expansion = True
-                            ret.append(w)
-                            seen_titles.add(title.strip().lower())
-                            pbar.update()
-                        else:
-                            continue
-                    else:
-                        stats.num_example_filtered += 1
+                        stats.num_example_missing_title += 1
                         continue
-                elif user_filter and not user_filter(generated_word):
+
+                if user_filter and not user_filter(generated_word):
                     stats.num_user_filtered += 1
                     continue
                 else:

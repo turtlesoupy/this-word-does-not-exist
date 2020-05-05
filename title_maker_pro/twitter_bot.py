@@ -60,16 +60,15 @@ class WordGenerator:
             num=1,
             max_iterations=5,
             blacklist=self.blacklist,
-            do_example_expansion=True,
             generation_args=dict(
                 top_k=300, num_return_sequences=10, max_length=self.approx_max_length, do_sample=True,
             ),
-            expansion_generation_overrides=dict(top_k=50, num_return_sequences=20, do_sample=True,),
             num_expansion_candidates=20,
             example_match_pos_pipeline=self.stanza_pos_pipeline,
             user_filter=user_filter,
             dedupe_titles=True,
             filter_proper_nouns=True,
+            use_custom_generate=True,
         )
 
         return expanded[0] if expanded else None
@@ -81,15 +80,11 @@ class WordGenerator:
             self.forward_model,
             num=1,
             prefix=prefix,
-            max_iterations=2,
-            do_example_expansion=True,
+            max_iterations=4,
             generation_args=dict(top_k=75, num_return_sequences=3, max_length=self.approx_max_length, do_sample=True,),
-            expansion_generation_overrides=dict(top_k=50, num_return_sequences=10, do_sample=True,),
-            num_expansion_candidates=10,
             example_match_pos_pipeline=self.stanza_pos_pipeline,
             dedupe_titles=False,
             user_filter=user_filter,
-            hail_mary_example=True,
             filter_proper_nouns=False,
         )
 

@@ -19,6 +19,7 @@ import torch
 from torch.nn import functional as F
 from transformers.modeling_utils import top_k_top_p_filtering, calc_banned_ngram_tokens
 
+
 @torch.no_grad()
 def custom_generate(
     self,
@@ -234,9 +235,7 @@ def custom_generate(
             "you should either supply a context to complete as `input_ids` input "
             "or a `bos_token_id` (integer >= 0) as a first token to start the generation."
         )
-        input_ids = torch.full(
-            (batch_size, 1), bos_token_id, dtype=torch.long, device=next(self.parameters()).device,
-        )
+        input_ids = torch.full((batch_size, 1), bos_token_id, dtype=torch.long, device=next(self.parameters()).device,)
     else:
         assert input_ids.dim() == 2, "Input prompt should be of shape (batch_size, sequence length)."
 
@@ -264,9 +263,7 @@ def custom_generate(
     # set pad_token_id to eos_token_id if not set. Important that this is done after
     # attention_mask is created
     if pad_token_id is None and eos_token_id is not None:
-        logger.warning(
-            "Setting `pad_token_id` to {} (first `eos_token_id`) to generate sequence".format(eos_token_id)
-        )
+        logger.warning("Setting `pad_token_id` to {} (first `eos_token_id`) to generate sequence".format(eos_token_id))
         pad_token_id = eos_token_id
 
     # current position and vocab size
@@ -306,9 +303,7 @@ def custom_generate(
     if num_return_sequences > 1 or num_beams > 1:
         input_ids_len = input_ids.shape[-1]
         input_ids = input_ids.unsqueeze(1).expand(batch_size, effective_batch_mult * num_beams, input_ids_len)
-        attention_mask = attention_mask.unsqueeze(1).expand(
-            batch_size, effective_batch_mult * num_beams, input_ids_len
-        )
+        attention_mask = attention_mask.unsqueeze(1).expand(batch_size, effective_batch_mult * num_beams, input_ids_len)
 
         input_ids = input_ids.contiguous().view(
             effective_batch_size * num_beams, input_ids_len
@@ -375,6 +370,7 @@ def custom_generate(
 
     return output
 
+
 def _generate_no_beam_search(
     self,
     input_ids,
@@ -437,7 +433,7 @@ def _generate_no_beam_search(
 
             for batch_idx in range(batch_size):
                 next_token_logits[batch_idx, banned_tokens[batch_idx]] = -float("inf")
-        
+
         # set eos token prob to zero if min_length is not reached
         if eos_token_id is not None and cur_len < min_length:
             next_token_logits[:, eos_token_id] = -float("inf")
@@ -494,16 +490,13 @@ def _generate_no_beam_search(
             if input_ids.size()[0] == 0:
                 break
 
-
         # stop when there is a </s> in each sentence, or if we exceed the maximul length
         if unfinished_sents.max() == 0:
             break
 
         # extend attention_mask for new generated input if only decoder
         if self.config.is_encoder_decoder is False:
-            attention_mask = torch.cat(
-                [attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1
-            )
+            attention_mask = torch.cat([attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1)
 
         cur_len = cur_len + 1
 
@@ -512,6 +505,7 @@ def _generate_no_beam_search(
         goodies.append(input_ids[i])
 
     from torch.nn.utils.rnn import pad_sequence
+
     return pad_sequence(goodies, batch_first=True, padding_value=pad_token_id)
 
     # if there are different sentences lengths in the batch, some batches have to be padded

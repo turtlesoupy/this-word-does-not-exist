@@ -578,11 +578,20 @@ def evaluate(args, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, prefi
 
         blacklist = datasets.Blacklist.load(args.eval_creativity_blacklist)
 
-        print(f"Evaluating creativity over {args.num_eval_creativity} words with {args.eval_creativity_batch_size} batch size")
+        print(
+            f"Evaluating creativity over {args.num_eval_creativity} words with {args.eval_creativity_batch_size} batch size"
+        )
         s = time.time()
-        result.update(datasets.ParsedDictionaryDefinitionDataset.evaluate_creativity(
-            tokenizer, model, blacklist, args.num_eval_creativity, args.eval_creativity_batch_size, max_length=args.block_size,
-        ))
+        result.update(
+            datasets.ParsedDictionaryDefinitionDataset.evaluate_creativity(
+                tokenizer,
+                model,
+                blacklist,
+                args.num_eval_creativity,
+                args.eval_creativity_batch_size,
+                max_length=args.block_size,
+            )
+        )
         print(f"Done evaluating creativity in {time.time() - s}s")
 
     output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
@@ -627,12 +636,8 @@ def main():
     parser.add_argument(
         "--eval_creativity_blacklist", type=str, help="Evaluate creativity of generation using a blacklist"
     )
-    parser.add_argument(
-        "--num_eval_creativity", type=int, help="Number of items to run eval creativity over"
-    )
-    parser.add_argument(
-        "--eval_creativity_batch_size", type=int, help="Batch size for eval creativity"
-    )
+    parser.add_argument("--num_eval_creativity", type=int, help="Number of items to run eval creativity over")
+    parser.add_argument("--eval_creativity_batch_size", type=int, help="Batch size for eval creativity")
     parser.add_argument(
         "--wiki_dataset", action="store_true", help="Whether this is a wiki dataset",
     )
@@ -960,7 +965,7 @@ def main():
             result = evaluate(args, model, tokenizer, prefix=prefix)
             result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
             results.update(result)
-    
+
     return results
 
 
