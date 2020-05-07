@@ -40,6 +40,5 @@ apis:
 #
 usage:
   rules:
-  # ListShelves methods can be called without an API Key.
-  - selector: endpoints.word_service.WordService.ListShelves
+  - selector: endpoints.word_service.WordService.DefineWord
     allow_unregistered_calls: true

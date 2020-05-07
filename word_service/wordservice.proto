@@ -25,6 +25,8 @@ import "google/protobuf/empty.proto";
 //
 // The API manages shelves and books resources. Shelves contain books.
 service WordService {
+  rpc DefineWord(DefineWordRequest) returns (DefineWordResponse) {}
+
   // Returns a list of all shelves in the bookstore.
   rpc ListShelves(google.protobuf.Empty) returns (ListShelvesResponse) {}
   // Creates a new shelf in the bookstore.
@@ -41,6 +43,22 @@ service WordService {
   rpc GetBook(GetBookRequest) returns (Book) {}
   // Deletes a book from a shelf.
   rpc DeleteBook(DeleteBookRequest) returns (google.protobuf.Empty) {}
+}
+
+message WordDefinition {
+  string word = 1;
+  string definition = 2; 
+  string pos = 3;
+  repeated string examples = 4;
+  repeated string syllables = 5;
+}
+
+message DefineWordRequest {
+  string word = 1;
+}
+
+message DefineWordResponse {
+  WordDefinition word = 1;
 }
 
 // A shelf resource.

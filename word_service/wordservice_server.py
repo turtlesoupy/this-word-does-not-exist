@@ -1,4 +1,5 @@
 import argparse
+import traceback
 from concurrent import futures
 import time
 import os
@@ -17,6 +18,24 @@ _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 class WordServiceServicer(wordservice_pb2_grpc.WordServiceServicer):
     def __init__(self, store):
         self._store = store
+
+    def DefineWord(self, request, context):
+        with status.context(context):
+            try:
+                response = wordservice_pb2.DefineWordResponse(
+                    word=wordservice_pb2.WordDefinition(
+                        word="abc",
+                        definition="bbq",
+                    )
+                )
+                print("YOLO!")
+                print(request)
+                print(response)
+                return response
+            except Exception:
+                traceback.print_exc()
+                raise
+
 
     def ListShelves(self, unused_request, context):
         with status.context(context):

@@ -19,10 +19,11 @@ import argparse
 from google.protobuf import empty_pb2
 import grpc
 
+import wordservice_pb2
 import wordservice_pb2_grpc
 
 
-def run(host, port, api_key, auth_token, timeout, use_tls):
+def run(host, port, api_key, auth_token, timeout, use_tls, word):
     """Makes a basic ListShelves call against a gRPC Bookstore server."""
 
     if use_tls:
@@ -38,8 +39,16 @@ def run(host, port, api_key, auth_token, timeout, use_tls):
         metadata.append(('x-api-key', api_key))
     if auth_token:
         metadata.append(('authorization', 'Bearer ' + auth_token))
-    shelves = stub.ListShelves(empty_pb2.Empty(), timeout, metadata=metadata)
-    print('ListShelves: {}'.format(shelves))
+
+    print("CALLING OUT TO WORD SERVICE")
+    req = wordservice_pb2.DefineWordRequest()
+    req.word = word
+    try:
+        response = stub.DefineWord(req, timeout, metadata=metadata)
+    except Exception:
+        print("Service raised exception")
+        raise
+    print(f"Define word response: {response}")
 
 
 if __name__ == '__main__':
@@ -60,5 +69,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--use_tls', type=bool, default=False,
         help='Enable when the server requires TLS')
+    parser.add_argument(
+        "--word", type=str, default="fuddleduddle", help="The word to define"
+    )
     args = parser.parse_args()
-    run(args.host, args.port, args.api_key, args.auth_token, args.timeout, args.use_tls)
+    run(args.host, args.port, args.api_key, args.auth_token, args.timeout, args.use_tls, args.word)

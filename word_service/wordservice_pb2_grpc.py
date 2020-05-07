@@ -17,6 +17,11 @@ class WordServiceStub(object):
     Args:
       channel: A grpc.Channel.
     """
+    self.DefineWord = channel.unary_unary(
+        '/endpoints.word_service.WordService/DefineWord',
+        request_serializer=wordservice__pb2.DefineWordRequest.SerializeToString,
+        response_deserializer=wordservice__pb2.DefineWordResponse.FromString,
+        )
     self.ListShelves = channel.unary_unary(
         '/endpoints.word_service.WordService/ListShelves',
         request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
@@ -64,6 +69,13 @@ class WordServiceServicer(object):
 
   The API manages shelves and books resources. Shelves contain books.
   """
+
+  def DefineWord(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
 
   def ListShelves(self, request, context):
     """Returns a list of all shelves in the bookstore.
@@ -124,6 +136,11 @@ class WordServiceServicer(object):
 
 def add_WordServiceServicer_to_server(servicer, server):
   rpc_method_handlers = {
+      'DefineWord': grpc.unary_unary_rpc_method_handler(
+          servicer.DefineWord,
+          request_deserializer=wordservice__pb2.DefineWordRequest.FromString,
+          response_serializer=wordservice__pb2.DefineWordResponse.SerializeToString,
+      ),
       'ListShelves': grpc.unary_unary_rpc_method_handler(
           servicer.ListShelves,
           request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
