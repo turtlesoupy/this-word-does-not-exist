@@ -55,6 +55,6 @@ spec:
           - containerPort: 9000
       - name: bookstore
         # image: gcr.io/endpointsv2/python-grpc-bookstore-server:1
-        image: gcr.io/this-word-does-not-exist/word-service:v5
+        image: gcr.io/this-word-does-not-exist/word-service:v6
         ports:
           - containerPort: 8000

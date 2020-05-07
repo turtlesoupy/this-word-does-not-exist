@@ -12,10 +12,10 @@ RUN virtualenv -p python3.6 /env
 ENV VIRTUAL_ENV /env
 ENV PATH /env/bin:$PATH
 
-COPY ./requirements.txt /bookstore/requirements.txt
-WORKDIR /bookstore
+COPY ./requirements.txt /app/requirements.txt
+WORKDIR /app
 RUN pip install -r requirements.txt
-ADD . /bookstore/
+ADD . /app/
 
 
-ENTRYPOINT ["python", "/bookstore/wordservice_server.py", "--port", "8000"]
+ENTRYPOINT ["python", "/app/wordservice_server.py", "--port", "8000"]
