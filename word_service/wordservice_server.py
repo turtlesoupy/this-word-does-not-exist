@@ -7,138 +7,74 @@ import os
 from google.protobuf import struct_pb2
 import grpc
 
-import bookstore
 import wordservice_pb2
 import wordservice_pb2_grpc
-import status
+from contextlib import contextmanager
 
-_ONE_DAY_IN_SECONDS = 60 * 60 * 24
+import grpc
+
+
+@contextmanager
+def context(grpc_context):
+    """A context manager that automatically handles KeyError."""
+    try:
+        yield
+    except KeyError as key_error:
+        grpc_context.code(grpc.StatusCode.NOT_FOUND)
+        grpc_context.details(
+            'Unable to find the item keyed by {}'.format(key_error))
 
 
 class WordServiceServicer(wordservice_pb2_grpc.WordServiceServicer):
-    def __init__(self, store):
-        self._store = store
+    def __init__(self):
+        pass
 
     def DefineWord(self, request, context):
-        with status.context(context):
-            try:
-                response = wordservice_pb2.DefineWordResponse(
-                    word=wordservice_pb2.WordDefinition(
-                        word="abc",
-                        definition="bbq",
-                    )
-                )
-                print("YOLO!")
-                print(request)
-                print(response)
-                return response
-            except Exception:
-                traceback.print_exc()
-                raise
-
-
-    def ListShelves(self, unused_request, context):
-        with status.context(context):
-            response = wordservice_pb2.ListShelvesResponse()
-            response.shelves.extend(self._store.list_shelf())
+        try:
+            response = wordservice_pb2.DefineWordResponse(
+                word=wordservice_pb2.WordDefinition(word="abc", definition="bbq",)
+            )
             return response
-
-    def CreateShelf(self, request, context):
-        with status.context(context):
-            shelf, _ = self._store.create_shelf(request.shelf)
-            return shelf
-
-    def GetShelf(self, request, context):
-        with status.context(context):
-            return self._store.get_shelf(request.shelf)
-
-    def DeleteShelf(self, request, context):
-        with status.context(context):
-            self._store.delete_shelf(request.shelf)
-            return struct_pb2.Value()
-
-    def ListBooks(self, request, context):
-        with status.context(context):
-            response = wordservice_pb2.ListBooksResponse()
-            response.books.extend(self._store.list_books(request.shelf))
-            return response
-
-    def CreateBook(self, request, context):
-        with status.context(context):
-            return self._store.create_book(request.shelf, request.book)
-
-    def GetBook(self, request, context):
-        with status.context(context):
-            return self._store.get_book(request.shelf, request.book)
-
-    def DeleteBook(self, request, context):
-        with status.context(context):
-            self._store.delete_book(request.shelf, request.book)
-            return struct_pb2.Value()
-
-
-def create_sample_bookstore():
-    """Creates a Bookstore with some initial sample data."""
-    store = bookstore.Bookstore()
-
-    shelf = wordservice_pb2.Shelf()
-    shelf.theme = 'Fiction'
-    _, fiction = store.create_shelf(shelf)
-
-    book = wordservice_pb2.Book()
-    book.title = 'REAMDE'
-    book.author = "Neal Stephenson"
-    store.create_book(fiction, book)
-
-    shelf = wordservice_pb2.Shelf()
-    shelf.theme = 'Fantasy'
-    _, fantasy = store.create_shelf(shelf)
-
-    book = wordservice_pb2.Book()
-    book.title = 'A Game of Thrones'
-    book.author = 'George R.R. Martin'
-    store.create_book(fantasy, book)
-
-    return store
+        except Exception:
+            traceback.print_exc()
+            raise
 
 
 def serve(port, shutdown_grace_duration):
-    """Configures and runs the bookstore API server."""
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 
-    store = create_sample_bookstore()
-    wordservice_pb2_grpc.add_WordServiceServicer_to_server(
-        WordServiceServicer(store), server)
-    server.add_insecure_port('[::]:{}'.format(port))
+    wordservice_pb2_grpc.add_WordServiceServicer_to_server(WordServiceServicer(), server)
+    server.add_insecure_port("[::]:{}".format(port))
     server.start()
 
-    print('Listening on port {}'.format(port))
+    print("Listening on port {}".format(port))
 
     try:
         while True:
-            time.sleep(_ONE_DAY_IN_SECONDS)
+            time.sleep(3600 * 24)
     except KeyboardInterrupt:
         server.stop(shutdown_grace_duration)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        '--port', type=int, default=None,
-        help='The port to listen on.'
-             'If arg is not set, will listen on the $PORT env var.'
-             'If env var is empty, defaults to 8000.')
+        "--port",
+        type=int,
+        default=None,
+        help="The port to listen on."
+        "If arg is not set, will listen on the $PORT env var."
+        "If env var is empty, defaults to 8000.",
+    )
     parser.add_argument(
-        '--shutdown_grace_duration', type=int, default=5,
-        help='The shutdown grace duration, in seconds')
+        "--shutdown_grace_duration", type=int, default=5, help="The shutdown grace duration, in seconds"
+    )
 
     args = parser.parse_args()
 
     port = args.port
     if not port:
-        port = os.environ.get('PORT')
+        port = os.environ.get("PORT")
     if not port:
         port = 8000
 
