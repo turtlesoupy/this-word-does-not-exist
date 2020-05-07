@@ -24,7 +24,7 @@ import "google/protobuf/empty.proto";
 // A simple Bookstore API.
 //
 // The API manages shelves and books resources. Shelves contain books.
-service Bookstore {
+service WordService {
   // Returns a list of all shelves in the bookstore.
   rpc ListShelves(google.protobuf.Empty) returns (ListShelvesResponse) {}
   // Creates a new shelf in the bookstore.

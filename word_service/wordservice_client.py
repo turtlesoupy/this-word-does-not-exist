@@ -19,7 +19,7 @@ import argparse
 from google.protobuf import empty_pb2
 import grpc
 
-import bookstore_pb2_grpc
+import wordservice_pb2_grpc
 
 
 def run(host, port, api_key, auth_token, timeout, use_tls):
@@ -32,7 +32,7 @@ def run(host, port, api_key, auth_token, timeout, use_tls):
     else:
         channel = grpc.insecure_channel('{}:{}'.format(host, port))
 
-    stub = bookstore_pb2_grpc.BookstoreStub(channel)
+    stub = wordservice_pb2_grpc.WordServiceStub(channel)
     metadata = []
     if api_key:
         metadata.append(('x-api-key', api_key))

@@ -33,7 +33,7 @@ name: wordservice.endpoints.this-word-does-not-exist.cloud.goog
 #
 title: WordService gRPC API
 apis:
-- name: endpoints.word_service.Bookstore
+- name: endpoints.word_service.WordService
 
 #
 # API usage restrictions.
@@ -41,5 +41,5 @@ apis:
 usage:
   rules:
   # ListShelves methods can be called without an API Key.
-  - selector: endpoints.word_service.Bookstore.ListShelves
+  - selector: endpoints.word_service.WordService.ListShelves
     allow_unregistered_calls: true

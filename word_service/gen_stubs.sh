@@ -5,4 +5,4 @@ python -m grpc_tools.protoc \
     --python_out=. \
     --grpc_python_out=. \
     --descriptor_set_out=api_descriptor.pb \
-    bookstore.proto
+    wordservice.proto
