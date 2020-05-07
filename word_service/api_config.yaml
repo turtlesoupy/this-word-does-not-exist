@@ -26,14 +26,14 @@ config_version: 3
 #
 # Name of the service configuration.
 #
-name: bookstore2.endpoints.this-word-does-not-exist.cloud.goog
+name: wordservice.endpoints.this-word-does-not-exist.cloud.goog
 
 #
 # API title to appear in the user interface (Google Cloud Console).
 #
-title: Bookstore gRPC API
+title: WordService gRPC API
 apis:
-- name: endpoints.examples.bookstore.Bookstore
+- name: endpoints.word_service.Bookstore
 
 #
 # API usage restrictions.
@@ -41,5 +41,5 @@ apis:
 usage:
   rules:
   # ListShelves methods can be called without an API Key.
-  - selector: endpoints.examples.bookstore.Bookstore.ListShelves
+  - selector: endpoints.word_service.Bookstore.ListShelves
     allow_unregistered_calls: true

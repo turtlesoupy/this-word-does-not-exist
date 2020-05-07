@@ -47,7 +47,7 @@ spec:
         image: gcr.io/endpoints-release/endpoints-runtime:1
         args: [
           "--http2_port=9000",
-          "--service=bookstore2.endpoints.this-word-does-not-exist.cloud.goog",
+          "--service=wordservice.endpoints.this-word-does-not-exist.cloud.goog",
           "--rollout_strategy=managed",
           "--backend=grpc://127.0.0.1:8000"
         ]
@@ -55,6 +55,6 @@ spec:
           - containerPort: 9000
       - name: bookstore
         # image: gcr.io/endpointsv2/python-grpc-bookstore-server:1
-        image: gcr.io/this-word-does-not-exist/word-service:v4
+        image: gcr.io/this-word-does-not-exist/word-service:v5
         ports:
           - containerPort: 8000

@@ -16,11 +16,7 @@
 
 syntax = "proto3";
 
-package endpoints.examples.bookstore;
-
-option java_multiple_files = true;
-option java_outer_classname = "BookstoreProto";
-option java_package = "com.google.endpoints.examples.bookstore";
+package endpoints.word_service;
 
 
 import "google/protobuf/empty.proto";

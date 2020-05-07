@@ -18,42 +18,42 @@ class BookstoreStub(object):
       channel: A grpc.Channel.
     """
     self.ListShelves = channel.unary_unary(
-        '/endpoints.examples.bookstore.Bookstore/ListShelves',
+        '/endpoints.word_service.Bookstore/ListShelves',
         request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
         response_deserializer=bookstore__pb2.ListShelvesResponse.FromString,
         )
     self.CreateShelf = channel.unary_unary(
-        '/endpoints.examples.bookstore.Bookstore/CreateShelf',
+        '/endpoints.word_service.Bookstore/CreateShelf',
         request_serializer=bookstore__pb2.CreateShelfRequest.SerializeToString,
         response_deserializer=bookstore__pb2.Shelf.FromString,
         )
     self.GetShelf = channel.unary_unary(
-        '/endpoints.examples.bookstore.Bookstore/GetShelf',
+        '/endpoints.word_service.Bookstore/GetShelf',
         request_serializer=bookstore__pb2.GetShelfRequest.SerializeToString,
         response_deserializer=bookstore__pb2.Shelf.FromString,
         )
     self.DeleteShelf = channel.unary_unary(
-        '/endpoints.examples.bookstore.Bookstore/DeleteShelf',
+        '/endpoints.word_service.Bookstore/DeleteShelf',
         request_serializer=bookstore__pb2.DeleteShelfRequest.SerializeToString,
         response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
         )
     self.ListBooks = channel.unary_unary(
-        '/endpoints.examples.bookstore.Bookstore/ListBooks',
+        '/endpoints.word_service.Bookstore/ListBooks',
         request_serializer=bookstore__pb2.ListBooksRequest.SerializeToString,
         response_deserializer=bookstore__pb2.ListBooksResponse.FromString,
         )
     self.CreateBook = channel.unary_unary(
-        '/endpoints.examples.bookstore.Bookstore/CreateBook',
+        '/endpoints.word_service.Bookstore/CreateBook',
         request_serializer=bookstore__pb2.CreateBookRequest.SerializeToString,
         response_deserializer=bookstore__pb2.Book.FromString,
         )
     self.GetBook = channel.unary_unary(
-        '/endpoints.examples.bookstore.Bookstore/GetBook',
+        '/endpoints.word_service.Bookstore/GetBook',
         request_serializer=bookstore__pb2.GetBookRequest.SerializeToString,
         response_deserializer=bookstore__pb2.Book.FromString,
         )
     self.DeleteBook = channel.unary_unary(
-        '/endpoints.examples.bookstore.Bookstore/DeleteBook',
+        '/endpoints.word_service.Bookstore/DeleteBook',
         request_serializer=bookstore__pb2.DeleteBookRequest.SerializeToString,
         response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
         )
@@ -166,5 +166,5 @@ def add_BookstoreServicer_to_server(servicer, server):
       ),
   }
   generic_handler = grpc.method_handlers_generic_handler(
-      'endpoints.examples.bookstore.Bookstore', rpc_method_handlers)
+      'endpoints.word_service.Bookstore', rpc_method_handlers)
   server.add_generic_rpc_handlers((generic_handler,))

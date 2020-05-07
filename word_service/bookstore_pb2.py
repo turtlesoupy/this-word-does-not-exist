@@ -17,10 +17,10 @@ from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='bookstore.proto',
-  package='endpoints.examples.bookstore',
+  package='endpoints.word_service',
   syntax='proto3',
-  serialized_options=_b('\n\'com.google.endpoints.examples.bookstoreB\016BookstoreProtoP\001'),
-  serialized_pb=_b('\n\x0f\x62ookstore.proto\x12\x1c\x65ndpoints.examples.bookstore\x1a\x1bgoogle/protobuf/empty.proto\"\"\n\x05Shelf\x12\n\n\x02id\x18\x01 \x01(\x03\x12\r\n\x05theme\x18\x02 \x01(\t\"1\n\x04\x42ook\x12\n\n\x02id\x18\x01 \x01(\x03\x12\x0e\n\x06\x61uthor\x18\x02 \x01(\t\x12\r\n\x05title\x18\x03 \x01(\t\"K\n\x13ListShelvesResponse\x12\x34\n\x07shelves\x18\x01 \x03(\x0b\x32#.endpoints.examples.bookstore.Shelf\"H\n\x12\x43reateShelfRequest\x12\x32\n\x05shelf\x18\x01 \x01(\x0b\x32#.endpoints.examples.bookstore.Shelf\" \n\x0fGetShelfRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\"#\n\x12\x44\x65leteShelfRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\"!\n\x10ListBooksRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\"F\n\x11ListBooksResponse\x12\x31\n\x05\x62ooks\x18\x01 \x03(\x0b\x32\".endpoints.examples.bookstore.Book\"T\n\x11\x43reateBookRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\x12\x30\n\x04\x62ook\x18\x02 \x01(\x0b\x32\".endpoints.examples.bookstore.Book\"-\n\x0eGetBookRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\x12\x0c\n\x04\x62ook\x18\x02 \x01(\x03\"0\n\x11\x44\x65leteBookRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\x12\x0c\n\x04\x62ook\x18\x02 \x01(\x03\x32\x99\x06\n\tBookstore\x12Z\n\x0bListShelves\x12\x16.google.protobuf.Empty\x1a\x31.endpoints.examples.bookstore.ListShelvesResponse\"\x00\x12\x66\n\x0b\x43reateShelf\x12\x30.endpoints.examples.bookstore.CreateShelfRequest\x1a#.endpoints.examples.bookstore.Shelf\"\x00\x12`\n\x08GetShelf\x12-.endpoints.examples.bookstore.GetShelfRequest\x1a#.endpoints.examples.bookstore.Shelf\"\x00\x12Y\n\x0b\x44\x65leteShelf\x12\x30.endpoints.examples.bookstore.DeleteShelfRequest\x1a\x16.google.protobuf.Empty\"\x00\x12n\n\tListBooks\x12..endpoints.examples.bookstore.ListBooksRequest\x1a/.endpoints.examples.bookstore.ListBooksResponse\"\x00\x12\x63\n\nCreateBook\x12/.endpoints.examples.bookstore.CreateBookRequest\x1a\".endpoints.examples.bookstore.Book\"\x00\x12]\n\x07GetBook\x12,.endpoints.examples.bookstore.GetBookRequest\x1a\".endpoints.examples.bookstore.Book\"\x00\x12W\n\nDeleteBook\x12/.endpoints.examples.bookstore.DeleteBookRequest\x1a\x16.google.protobuf.Empty\"\x00\x42;\n\'com.google.endpoints.examples.bookstoreB\x0e\x42ookstoreProtoP\x01\x62\x06proto3')
+  serialized_options=None,
+  serialized_pb=_b('\n\x0f\x62ookstore.proto\x12\x16\x65ndpoints.word_service\x1a\x1bgoogle/protobuf/empty.proto\"\"\n\x05Shelf\x12\n\n\x02id\x18\x01 \x01(\x03\x12\r\n\x05theme\x18\x02 \x01(\t\"1\n\x04\x42ook\x12\n\n\x02id\x18\x01 \x01(\x03\x12\x0e\n\x06\x61uthor\x18\x02 \x01(\t\x12\r\n\x05title\x18\x03 \x01(\t\"E\n\x13ListShelvesResponse\x12.\n\x07shelves\x18\x01 \x03(\x0b\x32\x1d.endpoints.word_service.Shelf\"B\n\x12\x43reateShelfRequest\x12,\n\x05shelf\x18\x01 \x01(\x0b\x32\x1d.endpoints.word_service.Shelf\" \n\x0fGetShelfRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\"#\n\x12\x44\x65leteShelfRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\"!\n\x10ListBooksRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\"@\n\x11ListBooksResponse\x12+\n\x05\x62ooks\x18\x01 \x03(\x0b\x32\x1c.endpoints.word_service.Book\"N\n\x11\x43reateBookRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\x12*\n\x04\x62ook\x18\x02 \x01(\x0b\x32\x1c.endpoints.word_service.Book\"-\n\x0eGetBookRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\x12\x0c\n\x04\x62ook\x18\x02 \x01(\x03\"0\n\x11\x44\x65leteBookRequest\x12\r\n\x05shelf\x18\x01 \x01(\x03\x12\x0c\n\x04\x62ook\x18\x02 \x01(\x03\x32\xcb\x05\n\tBookstore\x12T\n\x0bListShelves\x12\x16.google.protobuf.Empty\x1a+.endpoints.word_service.ListShelvesResponse\"\x00\x12Z\n\x0b\x43reateShelf\x12*.endpoints.word_service.CreateShelfRequest\x1a\x1d.endpoints.word_service.Shelf\"\x00\x12T\n\x08GetShelf\x12\'.endpoints.word_service.GetShelfRequest\x1a\x1d.endpoints.word_service.Shelf\"\x00\x12S\n\x0b\x44\x65leteShelf\x12*.endpoints.word_service.DeleteShelfRequest\x1a\x16.google.protobuf.Empty\"\x00\x12\x62\n\tListBooks\x12(.endpoints.word_service.ListBooksRequest\x1a).endpoints.word_service.ListBooksResponse\"\x00\x12W\n\nCreateBook\x12).endpoints.word_service.CreateBookRequest\x1a\x1c.endpoints.word_service.Book\"\x00\x12Q\n\x07GetBook\x12&.endpoints.word_service.GetBookRequest\x1a\x1c.endpoints.word_service.Book\"\x00\x12Q\n\nDeleteBook\x12).endpoints.word_service.DeleteBookRequest\x1a\x16.google.protobuf.Empty\"\x00\x62\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_empty__pb2.DESCRIPTOR,])
 
@@ -29,20 +29,20 @@ DESCRIPTOR = _descriptor.FileDescriptor(
 
 _SHELF = _descriptor.Descriptor(
   name='Shelf',
-  full_name='endpoints.examples.bookstore.Shelf',
+  full_name='endpoints.word_service.Shelf',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='id', full_name='endpoints.examples.bookstore.Shelf.id', index=0,
+      name='id', full_name='endpoints.word_service.Shelf.id', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='theme', full_name='endpoints.examples.bookstore.Shelf.theme', index=1,
+      name='theme', full_name='endpoints.word_service.Shelf.theme', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -60,34 +60,34 @@ _SHELF = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=78,
-  serialized_end=112,
+  serialized_start=72,
+  serialized_end=106,
 )
 
 
 _BOOK = _descriptor.Descriptor(
   name='Book',
-  full_name='endpoints.examples.bookstore.Book',
+  full_name='endpoints.word_service.Book',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='id', full_name='endpoints.examples.bookstore.Book.id', index=0,
+      name='id', full_name='endpoints.word_service.Book.id', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='author', full_name='endpoints.examples.bookstore.Book.author', index=1,
+      name='author', full_name='endpoints.word_service.Book.author', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='title', full_name='endpoints.examples.bookstore.Book.title', index=2,
+      name='title', full_name='endpoints.word_service.Book.title', index=2,
       number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -105,20 +105,20 @@ _BOOK = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=114,
-  serialized_end=163,
+  serialized_start=108,
+  serialized_end=157,
 )
 
 
 _LISTSHELVESRESPONSE = _descriptor.Descriptor(
   name='ListShelvesResponse',
-  full_name='endpoints.examples.bookstore.ListShelvesResponse',
+  full_name='endpoints.word_service.ListShelvesResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='shelves', full_name='endpoints.examples.bookstore.ListShelvesResponse.shelves', index=0,
+      name='shelves', full_name='endpoints.word_service.ListShelvesResponse.shelves', index=0,
       number=1, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -136,20 +136,20 @@ _LISTSHELVESRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=165,
-  serialized_end=240,
+  serialized_start=159,
+  serialized_end=228,
 )
 
 
 _CREATESHELFREQUEST = _descriptor.Descriptor(
   name='CreateShelfRequest',
-  full_name='endpoints.examples.bookstore.CreateShelfRequest',
+  full_name='endpoints.word_service.CreateShelfRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='shelf', full_name='endpoints.examples.bookstore.CreateShelfRequest.shelf', index=0,
+      name='shelf', full_name='endpoints.word_service.CreateShelfRequest.shelf', index=0,
       number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -167,20 +167,20 @@ _CREATESHELFREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=242,
-  serialized_end=314,
+  serialized_start=230,
+  serialized_end=296,
 )
 
 
 _GETSHELFREQUEST = _descriptor.Descriptor(
   name='GetShelfRequest',
-  full_name='endpoints.examples.bookstore.GetShelfRequest',
+  full_name='endpoints.word_service.GetShelfRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='shelf', full_name='endpoints.examples.bookstore.GetShelfRequest.shelf', index=0,
+      name='shelf', full_name='endpoints.word_service.GetShelfRequest.shelf', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -198,20 +198,20 @@ _GETSHELFREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=316,
-  serialized_end=348,
+  serialized_start=298,
+  serialized_end=330,
 )
 
 
 _DELETESHELFREQUEST = _descriptor.Descriptor(
   name='DeleteShelfRequest',
-  full_name='endpoints.examples.bookstore.DeleteShelfRequest',
+  full_name='endpoints.word_service.DeleteShelfRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='shelf', full_name='endpoints.examples.bookstore.DeleteShelfRequest.shelf', index=0,
+      name='shelf', full_name='endpoints.word_service.DeleteShelfRequest.shelf', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -229,20 +229,20 @@ _DELETESHELFREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=350,
-  serialized_end=385,
+  serialized_start=332,
+  serialized_end=367,
 )
 
 
 _LISTBOOKSREQUEST = _descriptor.Descriptor(
   name='ListBooksRequest',
-  full_name='endpoints.examples.bookstore.ListBooksRequest',
+  full_name='endpoints.word_service.ListBooksRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='shelf', full_name='endpoints.examples.bookstore.ListBooksRequest.shelf', index=0,
+      name='shelf', full_name='endpoints.word_service.ListBooksRequest.shelf', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -260,20 +260,20 @@ _LISTBOOKSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=387,
-  serialized_end=420,
+  serialized_start=369,
+  serialized_end=402,
 )
 
 
 _LISTBOOKSRESPONSE = _descriptor.Descriptor(
   name='ListBooksResponse',
-  full_name='endpoints.examples.bookstore.ListBooksResponse',
+  full_name='endpoints.word_service.ListBooksResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='books', full_name='endpoints.examples.bookstore.ListBooksResponse.books', index=0,
+      name='books', full_name='endpoints.word_service.ListBooksResponse.books', index=0,
       number=1, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -291,27 +291,27 @@ _LISTBOOKSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=422,
-  serialized_end=492,
+  serialized_start=404,
+  serialized_end=468,
 )
 
 
 _CREATEBOOKREQUEST = _descriptor.Descriptor(
   name='CreateBookRequest',
-  full_name='endpoints.examples.bookstore.CreateBookRequest',
+  full_name='endpoints.word_service.CreateBookRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='shelf', full_name='endpoints.examples.bookstore.CreateBookRequest.shelf', index=0,
+      name='shelf', full_name='endpoints.word_service.CreateBookRequest.shelf', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='book', full_name='endpoints.examples.bookstore.CreateBookRequest.book', index=1,
+      name='book', full_name='endpoints.word_service.CreateBookRequest.book', index=1,
       number=2, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -329,27 +329,27 @@ _CREATEBOOKREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=494,
-  serialized_end=578,
+  serialized_start=470,
+  serialized_end=548,
 )
 
 
 _GETBOOKREQUEST = _descriptor.Descriptor(
   name='GetBookRequest',
-  full_name='endpoints.examples.bookstore.GetBookRequest',
+  full_name='endpoints.word_service.GetBookRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='shelf', full_name='endpoints.examples.bookstore.GetBookRequest.shelf', index=0,
+      name='shelf', full_name='endpoints.word_service.GetBookRequest.shelf', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='book', full_name='endpoints.examples.bookstore.GetBookRequest.book', index=1,
+      name='book', full_name='endpoints.word_service.GetBookRequest.book', index=1,
       number=2, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -367,27 +367,27 @@ _GETBOOKREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=580,
-  serialized_end=625,
+  serialized_start=550,
+  serialized_end=595,
 )
 
 
 _DELETEBOOKREQUEST = _descriptor.Descriptor(
   name='DeleteBookRequest',
-  full_name='endpoints.examples.bookstore.DeleteBookRequest',
+  full_name='endpoints.word_service.DeleteBookRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='shelf', full_name='endpoints.examples.bookstore.DeleteBookRequest.shelf', index=0,
+      name='shelf', full_name='endpoints.word_service.DeleteBookRequest.shelf', index=0,
       number=1, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='book', full_name='endpoints.examples.bookstore.DeleteBookRequest.book', index=1,
+      name='book', full_name='endpoints.word_service.DeleteBookRequest.book', index=1,
       number=2, type=3, cpp_type=2, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -405,8 +405,8 @@ _DELETEBOOKREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=627,
-  serialized_end=675,
+  serialized_start=597,
+  serialized_end=645,
 )
 
 _LISTSHELVESRESPONSE.fields_by_name['shelves'].message_type = _SHELF
@@ -429,95 +429,94 @@ _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 Shelf = _reflection.GeneratedProtocolMessageType('Shelf', (_message.Message,), dict(
   DESCRIPTOR = _SHELF,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.Shelf)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.Shelf)
   ))
 _sym_db.RegisterMessage(Shelf)
 
 Book = _reflection.GeneratedProtocolMessageType('Book', (_message.Message,), dict(
   DESCRIPTOR = _BOOK,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.Book)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.Book)
   ))
 _sym_db.RegisterMessage(Book)
 
 ListShelvesResponse = _reflection.GeneratedProtocolMessageType('ListShelvesResponse', (_message.Message,), dict(
   DESCRIPTOR = _LISTSHELVESRESPONSE,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.ListShelvesResponse)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.ListShelvesResponse)
   ))
 _sym_db.RegisterMessage(ListShelvesResponse)
 
 CreateShelfRequest = _reflection.GeneratedProtocolMessageType('CreateShelfRequest', (_message.Message,), dict(
   DESCRIPTOR = _CREATESHELFREQUEST,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.CreateShelfRequest)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.CreateShelfRequest)
   ))
 _sym_db.RegisterMessage(CreateShelfRequest)
 
 GetShelfRequest = _reflection.GeneratedProtocolMessageType('GetShelfRequest', (_message.Message,), dict(
   DESCRIPTOR = _GETSHELFREQUEST,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.GetShelfRequest)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.GetShelfRequest)
   ))
 _sym_db.RegisterMessage(GetShelfRequest)
 
 DeleteShelfRequest = _reflection.GeneratedProtocolMessageType('DeleteShelfRequest', (_message.Message,), dict(
   DESCRIPTOR = _DELETESHELFREQUEST,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.DeleteShelfRequest)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.DeleteShelfRequest)
   ))
 _sym_db.RegisterMessage(DeleteShelfRequest)
 
 ListBooksRequest = _reflection.GeneratedProtocolMessageType('ListBooksRequest', (_message.Message,), dict(
   DESCRIPTOR = _LISTBOOKSREQUEST,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.ListBooksRequest)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.ListBooksRequest)
   ))
 _sym_db.RegisterMessage(ListBooksRequest)
 
 ListBooksResponse = _reflection.GeneratedProtocolMessageType('ListBooksResponse', (_message.Message,), dict(
   DESCRIPTOR = _LISTBOOKSRESPONSE,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.ListBooksResponse)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.ListBooksResponse)
   ))
 _sym_db.RegisterMessage(ListBooksResponse)
 
 CreateBookRequest = _reflection.GeneratedProtocolMessageType('CreateBookRequest', (_message.Message,), dict(
   DESCRIPTOR = _CREATEBOOKREQUEST,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.CreateBookRequest)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.CreateBookRequest)
   ))
 _sym_db.RegisterMessage(CreateBookRequest)
 
 GetBookRequest = _reflection.GeneratedProtocolMessageType('GetBookRequest', (_message.Message,), dict(
   DESCRIPTOR = _GETBOOKREQUEST,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.GetBookRequest)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.GetBookRequest)
   ))
 _sym_db.RegisterMessage(GetBookRequest)
 
 DeleteBookRequest = _reflection.GeneratedProtocolMessageType('DeleteBookRequest', (_message.Message,), dict(
   DESCRIPTOR = _DELETEBOOKREQUEST,
   __module__ = 'bookstore_pb2'
-  # @@protoc_insertion_point(class_scope:endpoints.examples.bookstore.DeleteBookRequest)
+  # @@protoc_insertion_point(class_scope:endpoints.word_service.DeleteBookRequest)
   ))
 _sym_db.RegisterMessage(DeleteBookRequest)
 
 
-DESCRIPTOR._options = None
 
 _BOOKSTORE = _descriptor.ServiceDescriptor(
   name='Bookstore',
-  full_name='endpoints.examples.bookstore.Bookstore',
+  full_name='endpoints.word_service.Bookstore',
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=678,
-  serialized_end=1471,
+  serialized_start=648,
+  serialized_end=1363,
   methods=[
   _descriptor.MethodDescriptor(
     name='ListShelves',
-    full_name='endpoints.examples.bookstore.Bookstore.ListShelves',
+    full_name='endpoints.word_service.Bookstore.ListShelves',
     index=0,
     containing_service=None,
     input_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
@@ -526,7 +525,7 @@ _BOOKSTORE = _descriptor.ServiceDescriptor(
   ),
   _descriptor.MethodDescriptor(
     name='CreateShelf',
-    full_name='endpoints.examples.bookstore.Bookstore.CreateShelf',
+    full_name='endpoints.word_service.Bookstore.CreateShelf',
     index=1,
     containing_service=None,
     input_type=_CREATESHELFREQUEST,
@@ -535,7 +534,7 @@ _BOOKSTORE = _descriptor.ServiceDescriptor(
   ),
   _descriptor.MethodDescriptor(
     name='GetShelf',
-    full_name='endpoints.examples.bookstore.Bookstore.GetShelf',
+    full_name='endpoints.word_service.Bookstore.GetShelf',
     index=2,
     containing_service=None,
     input_type=_GETSHELFREQUEST,
@@ -544,7 +543,7 @@ _BOOKSTORE = _descriptor.ServiceDescriptor(
   ),
   _descriptor.MethodDescriptor(
     name='DeleteShelf',
-    full_name='endpoints.examples.bookstore.Bookstore.DeleteShelf',
+    full_name='endpoints.word_service.Bookstore.DeleteShelf',
     index=3,
     containing_service=None,
     input_type=_DELETESHELFREQUEST,
@@ -553,7 +552,7 @@ _BOOKSTORE = _descriptor.ServiceDescriptor(
   ),
   _descriptor.MethodDescriptor(
     name='ListBooks',
-    full_name='endpoints.examples.bookstore.Bookstore.ListBooks',
+    full_name='endpoints.word_service.Bookstore.ListBooks',
     index=4,
     containing_service=None,
     input_type=_LISTBOOKSREQUEST,
@@ -562,7 +561,7 @@ _BOOKSTORE = _descriptor.ServiceDescriptor(
   ),
   _descriptor.MethodDescriptor(
     name='CreateBook',
-    full_name='endpoints.examples.bookstore.Bookstore.CreateBook',
+    full_name='endpoints.word_service.Bookstore.CreateBook',
     index=5,
     containing_service=None,
     input_type=_CREATEBOOKREQUEST,
@@ -571,7 +570,7 @@ _BOOKSTORE = _descriptor.ServiceDescriptor(
   ),
   _descriptor.MethodDescriptor(
     name='GetBook',
-    full_name='endpoints.examples.bookstore.Bookstore.GetBook',
+    full_name='endpoints.word_service.Bookstore.GetBook',
     index=6,
     containing_service=None,
     input_type=_GETBOOKREQUEST,
@@ -580,7 +579,7 @@ _BOOKSTORE = _descriptor.ServiceDescriptor(
   ),
   _descriptor.MethodDescriptor(
     name='DeleteBook',
-    full_name='endpoints.examples.bookstore.Bookstore.DeleteBook',
+    full_name='endpoints.word_service.Bookstore.DeleteBook',
     index=7,
     containing_service=None,
     input_type=_DELETEBOOKREQUEST,
