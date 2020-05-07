@@ -1,12 +1,11 @@
 from dataclasses import dataclass
-import time
 import os
 import logging
 import pickle
 import hashlib
 import itertools
-import custom_modeling_utils
-import dictionary_definition
+import title_maker_pro.custom_modeling_utils as custom_modeling_utils
+import title_maker_pro.dictionary_definition as dictionary_definition
 import re
 import torch
 import random
