@@ -17,11 +17,10 @@
   <meta property="og:title" content="This Word Does Not Exist">
   <meta property="description" content="This Word Does Not Exist uses an artificial intelligence model named GPT-2 to invent new words in the English language.">
 
-
-
-  <link rel="stylesheet" href="static/index.css">
+  <link rel="stylesheet" href="/static/bundle.css">
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=UA-25938904-2"></script>
+  <script type="text/javascript" async src="/static/bundle.js"></script>
   <script type="text/javascript" async src="https://platform.twitter.com/widgets.js"></script>
   <script>
       window.dataLayer = window.dataLayer || [];
@@ -50,26 +49,28 @@
                 </a>
             </div>
         </div>
-        <div class="definition-zone">
+        <div id="definition-zone" class="definition-zone">
             <div class="inner">
-                {% if word.pos %}
-                <div class="pos"> {{word.pos}}{{"" if word.pos.endswith("]") else "."}} </div>
-                {% endif %}
+                <div id="definition-pos" class="pos"> 
+                    {% if word.pos %}
+                    {{word.pos}}{{"" if word.pos.endswith("]") else "."}} 
+                    {% endif %}
+                </div>
 
-                <div class="word">{{ word.word }}</div> 
+                <div id="definition-word" class="word">{{ word.word }}</div> 
 
 
-                {% if word.syllables and word.syllables|length > 1 %}
-                    <div class="syllables">
+                <div id="definition-syllables" class="syllables">
+                    {% if word.syllables and word.syllables|length > 1 %}
                         {{"<span class='syllable-separator'>&middot;</span>".join(word.syllables) | safe}}
-                    </div>
-                {% endif %}
+                    {% endif %}
+                </div>
 
                 <ol>
                     <li>
                         <div class="definition-section">
-                            <div class="definition"> {{word.definition}} </div>
-                            <div class="example">"{{word.example}}"</div>
+                            <div id="definition-definition" class="definition"> {{word.definition}} </div>
+                            <div id="definition-example" class="example">"{{word.example}}"</div>
                         </div>
                     </li>
 
@@ -77,11 +78,27 @@
                         <div class="definition-section">
                             a word that does not exist; it was invented, defined and used by a machine learning algorithm. 
                             <br />
-                            <a href="/">Generate another word &rarr;</a>
+                            <a href="/">Generate another word </a> / 
+                            <a id="write-button" href="/">Write your own </a>
                         </div>
                     </li>
                 </ol>
             </div>
+        </div>
+
+        <div id="write-your-own" class="write-your-own" style="display: none;">
+            <div id="hint-text" class="hint-text">
+                <span id="hint-text-value">hit enter when done </span> (<a id="word-entry-cancel" href="/">cancel</a>)
+            </div>
+            <div id="word-loading" class="word-loading" style="display: none;">
+                <img src="/static/ajax-loader.gif" alt="loading"/>
+                Computing...
+            </div>
+            <form id="word-entry-form">
+                <input type="text" id="word-entry" class="word-entry" 
+                    autocomplete="off" autocorrect="off" autocapitalize="off" 
+                    spellcheck="false" placeholder="word">
+            </form> 
         </div>
 
         <div class="attribution">

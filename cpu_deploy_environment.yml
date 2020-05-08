@@ -7,7 +7,6 @@ channels:
 dependencies:
   - beautifulsoup4>=4.8.2
   - google-auth>=1.14.1
-  - grpcio>=1.23.0
   - grpcio-tools>=1.16.1
   - numpy>=1.18.1
   - cpuonly>=1.0.0
@@ -23,3 +22,4 @@ dependencies:
   - pip:
     - transformers==2.8.0
     - pyhyphen>=3.0.1
+    - grpcio>=1.28.1

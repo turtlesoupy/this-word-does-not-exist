@@ -6,3 +6,6 @@ __pycache__/
 build/
 libraries/
 .swp
+node_modules/
+package-lock.json
+deploy/secret_env_vars.sh

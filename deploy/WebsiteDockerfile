@@ -28,9 +28,10 @@ COPY ./deploy/website/supervisord.conf /etc/supervisor/supervisord.conf
 COPY ./website website
 COPY ./title_maker_pro title_maker_pro
 COPY ./word_service word_service
+COPY ./deploy/secret_env_vars.sh /app/secret_env_vars.sh
 
 # Expose ports.
 EXPOSE 8080
 
-ENTRYPOINT ["supervisord"]
+ENTRYPOINT ["/bin/bash", "-c", "source secret_env_vars.sh && supervisord"]
 # ENTRYPOINT ["/bin/bash"]

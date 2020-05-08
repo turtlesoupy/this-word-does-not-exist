@@ -56,7 +56,6 @@ class WordGenerator:
             generation_args=dict(
                 top_k=300, num_return_sequences=10, max_length=self.approx_max_length, do_sample=True,
             ),
-            num_expansion_candidates=20,
             example_match_pos_pipeline=self.stanza_pos_pipeline,
             user_filter=user_filter,
             dedupe_titles=True,

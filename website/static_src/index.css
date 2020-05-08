@@ -66,6 +66,33 @@ a.darken:hover img {
   color: white;
 }
 
+.write-your-own {
+  margin-top: 20vh;
+  margin-bottom: 50px;
+  margin-left: auto;
+  margin-right: auto;
+  height: 50vh;
+  color: white;
+}
+
+.hint-text {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.word-loading {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.word-entry {
+    border: 0px;
+    color: #51b8b8;
+    background-color: rgba(255, 255, 255, 0.0);
+    resize: none;
+    width: 100%;
+    font-size: 2em;
+    outline: none;
+}
+
 .definition-zone ol {
     padding-inline-start: 20px;
 }
@@ -131,10 +158,18 @@ a.darken:hover img {
     .definition-zone {
         margin-top: 10vh;
     }
+
+    .write-your-own {
+        margin-top: 10vh;
+    }
 }
 
 @media screen and (max-height: 550px) {
     .definition-zone {
+        height: auto;
+    }
+
+    .write-your-own {
         height: auto;
     }
 
