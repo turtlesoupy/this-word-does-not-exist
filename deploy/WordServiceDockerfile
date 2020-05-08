@@ -23,5 +23,12 @@ RUN [ "/bin/bash", "-c", "source activate title_maker_pro && python -c 'from tra
 COPY ./title_maker_pro title_maker_pro
 COPY ./word_service word_service
 
-# ENTRYPOINT ["/bin/bash", "-c", "source activate title_maker_pro && source build/env_vars.sh && python title_maker_pro/twitter_bot.py --forward-model-path build/forward-dictionary-model-v1 --inverse-model-path build/inverse-dictionary-model-v1 --blacklist-path build/blacklist.pickle"]
-ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT ["/bin/bash", "-c", "source activate title_maker_pro && \
+  PYTHONPATH=.:$PYTHONPATH \
+  python word_service/wordservice_server.py \
+  --forward-model-path models/forward-dictionary-model-v1 \
+  --inverse-model-path models/inverse-dictionary-model-v1 \
+  --blacklist-path models/blacklist.pickle \
+  --quantize \
+  --device cpu \
+"]
