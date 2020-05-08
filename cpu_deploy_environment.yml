@@ -6,6 +6,9 @@ channels:
   - defaults
 dependencies:
   - beautifulsoup4>=4.8.2
+  - google-auth>=1.14.1
+  - grpcio>=1.23.0
+  - grpcio-tools>=1.16.1
   - numpy>=1.18.1
   - cpuonly>=1.0.0
   - pandas>=1.0.2
@@ -18,5 +21,4 @@ dependencies:
   - tqdm>=4.43.0
   - tweepy>=3.8.0
   - pip:
-    - transformers>=2.8.0
-
+    - transformers==2.8.0

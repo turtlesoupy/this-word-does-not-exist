@@ -22,7 +22,6 @@ def run(host, port, api_key, auth_token, timeout, use_tls, word):
     if auth_token:
         metadata.append(("authorization", "Bearer " + auth_token))
 
-    print("CALLING OUT TO WORD SERVICE")
     req = wordservice_pb2.DefineWordRequest()
     req.word = word
     try:
@@ -30,6 +29,7 @@ def run(host, port, api_key, auth_token, timeout, use_tls, word):
     except Exception:
         print("Service raised exception")
         raise
+
     print(f"Define word response: {response}")
 
 

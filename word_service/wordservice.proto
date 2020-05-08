@@ -20,4 +20,5 @@ message DefineWordRequest {
 
 message DefineWordResponse {
   WordDefinition word = 1;
+  bool is_fallback = 2;
 }

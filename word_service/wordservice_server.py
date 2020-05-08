@@ -31,7 +31,7 @@ class WordServiceServicer(wordservice_pb2_grpc.WordServiceServicer):
         gen_word = self.word_generator.generate_definition(request.word)
 
         if gen_word is None:
-            res_word = wordservice_pb2.WordDefinition(word="NONE", definition="NONE")
+            res_word = wordservice_pb2.WordDefinition()
         else:
             res_word = wordservice_pb2.WordDefinition(
                 word=gen_word.word,

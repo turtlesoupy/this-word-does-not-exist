@@ -1,0 +1,27 @@
+FROM continuumio/miniconda3
+
+RUN apt-get update && apt-get install -y tar git curl nano wget dialog net-tools build-essential
+RUN conda update conda && conda create -n title_maker_pro -c pytorch -c stanfordnlp -c conda-forge python=3.7
+
+RUN [ "/bin/bash", "-c", "source activate title_maker_pro \
+  && conda install pytorch torchvision cpuonly -c pytorch \
+  && conda install -c stanfordnlp stanza" ]
+
+RUN [ "/bin/bash", "-c", "source activate title_maker_pro && python -c 'import stanza; stanza.download(\"en\")'" ]
+
+RUN mkdir -p /app/models
+WORKDIR /app/models
+RUN curl https://storage.googleapis.com/this-word-does-not-exist-models/forward-dictionary-model-v1.tar.gz | tar -xz
+RUN curl https://storage.googleapis.com/this-word-does-not-exist-models/inverse-dictionary-model-v1.tar.gz | tar -xz
+RUN curl -O https://storage.googleapis.com/this-word-does-not-exist-models/blacklist.pickle.gz && gunzip blacklist.pickle.gz
+
+WORKDIR /app
+COPY ./cpu_deploy_environment.yml .
+RUN [ "/bin/bash", "-c", "source activate title_maker_pro && conda env update -f cpu_deploy_environment.yml"]
+RUN [ "/bin/bash", "-c", "source activate title_maker_pro && python -c 'from transformers import AutoTokenizer; AutoTokenizer.from_pretrained(\"gpt2\")'"]
+
+COPY ./title_maker_pro title_maker_pro
+COPY ./word_service word_service
+
+# ENTRYPOINT ["/bin/bash", "-c", "source activate title_maker_pro && source build/env_vars.sh && python title_maker_pro/twitter_bot.py --forward-model-path build/forward-dictionary-model-v1 --inverse-model-path build/inverse-dictionary-model-v1 --blacklist-path build/blacklist.pickle"]
+ENTRYPOINT ["/bin/bash"]
