@@ -22,3 +22,4 @@ dependencies:
   - tweepy>=3.8.0
   - pip:
     - transformers==2.8.0
+    - pyhyphen>=3.0.1

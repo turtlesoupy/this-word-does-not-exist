@@ -4,6 +4,8 @@ package endpoints.word_service;
 
 service WordService {
   rpc DefineWord(DefineWordRequest) returns (DefineWordResponse) {}
+  rpc WordFromDefinition(WordFromDefinitionRequest) returns (WordFromDefinitionResponse) {}
+  rpc GenerateWord(GenerateWordRequest) returns (GenerateWordResponse) {}
 }
 
 message WordDefinition {
@@ -17,8 +19,18 @@ message WordDefinition {
 message DefineWordRequest {
   string word = 1;
 }
-
 message DefineWordResponse {
   WordDefinition word = 1;
-  bool is_fallback = 2;
+}
+
+message WordFromDefinitionRequest {
+  string definition = 1;
+}
+message WordFromDefinitionResponse {
+  WordDefinition word = 1;
+}
+
+message GenerateWordRequest {}
+message GenerateWordResponse {
+  WordDefinition word = 1;
 }

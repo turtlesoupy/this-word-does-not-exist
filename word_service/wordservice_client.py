@@ -1,10 +1,8 @@
 import argparse
-
-from google.protobuf import empty_pb2
 import grpc
 
-import wordservice_pb2
-import wordservice_pb2_grpc
+from word_service_proto import wordservice_pb2
+from word_service_proto import wordservice_pb2_grpc
 
 
 def run(host, port, api_key, auth_token, timeout, use_tls, word):

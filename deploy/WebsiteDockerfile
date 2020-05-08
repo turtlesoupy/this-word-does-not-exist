@@ -18,14 +18,16 @@ RUN \
   curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
   python3.7 get-pip.py
 
-COPY ./deploy/nginx.conf /etc/nginx/nginx.conf
-COPY ./deploy/supervisord.conf /etc/supervisor/supervisord.conf
-
 WORKDIR /app
 
-COPY ./requirements.txt .
+COPY ./website/requirements.txt .
 RUN pip install -r requirements.txt
-COPY . .
+
+COPY ./deploy/website/nginx.conf /etc/nginx/nginx.conf
+COPY ./deploy/website/supervisord.conf /etc/supervisor/supervisord.conf
+COPY ./website website
+COPY ./title_maker_pro title_maker_pro
+COPY ./word_service word_service
 
 # Expose ports.
 EXPOSE 8080

@@ -5,11 +5,12 @@ import time
 import os
 import grpc
 import logging
-import wordservice_pb2
-import wordservice_pb2_grpc
+from word_service_proto import wordservice_pb2
+from word_service_proto import wordservice_pb2_grpc
 from contextlib import contextmanager
 
 from title_maker_pro.word_generator import WordGenerator
+from hyphen import Hyphenator
 
 logger = logging.getLogger(__name__)
 
@@ -24,24 +25,33 @@ def context(grpc_context):
 
 
 class WordServiceServicer(wordservice_pb2_grpc.WordServiceServicer):
-    def __init__(self, word_generator):
+    def __init__(self, word_generator, hyphenator):
         self.word_generator = word_generator
+        self.hyphenator = hyphenator
 
-    def DefineWord(self, request, context):
-        gen_word = self.word_generator.generate_definition(request.word)
-
+    def gen_word_to_word_definition(self, gen_word):
         if gen_word is None:
-            res_word = wordservice_pb2.WordDefinition()
+            return wordservice_pb2.WordDefinition()
         else:
-            res_word = wordservice_pb2.WordDefinition(
+            return wordservice_pb2.WordDefinition(
                 word=gen_word.word,
                 definition=gen_word.definition,
                 pos=gen_word.pos,
                 examples=[gen_word.example],
-                syllables=[],
+                syllables=self.hyphenator.syllables(gen_word.word),
             )
 
-        return wordservice_pb2.DefineWordResponse(word=res_word)
+    def GenerateWord(self, request, context):
+        gen_word = self.word_generator.generate_word()
+        return wordservice_pb2.GenerateWordResponse(word=self.gen_word_to_word_definition(gen_word))
+
+    def WordFromDefinition(self, request, context):
+        gen_word = self.word_generator.generate_word_from_definition(request.definition)
+        return wordservice_pb2.WordFromDefinitionResponse(word=self.gen_word_to_word_definition(gen_word))
+
+    def DefineWord(self, request, context):
+        gen_word = self.word_generator.generate_definition(request.word)
+        return wordservice_pb2.DefineWordResponse(word=self.gen_word_to_word_definition(gen_word))
 
 
 def main(args):
@@ -62,15 +72,15 @@ def main(args):
         blacklist_path=args.blacklist_path,
         quantize=args.quantize,
     )
+    h_en = Hyphenator('en_US')
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 
-    wordservice_pb2_grpc.add_WordServiceServicer_to_server(WordServiceServicer(word_generator), server)
+    wordservice_pb2_grpc.add_WordServiceServicer_to_server(WordServiceServicer(word_generator, h_en), server)
     server.add_insecure_port("[::]:{}".format(port))
     server.start()
 
-    logging.info(f"Listening on port port")
-    print("Listening on port {}".format(port))
+    logging.info(f"Listening on port {port}")
 
     try:
         while True:

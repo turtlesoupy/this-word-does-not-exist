@@ -5,9 +5,11 @@ import words
 import sys
 import argparse
 from urllib.parse import quote_plus
+from word_service.word_service_proto import wordservice_pb2
+from word_service.word_service_proto import wordservice_pb2_grpc
 
 routes = web.RouteTableDef()
-word_index = words.WordIndex.load("./data/words.json")
+word_index = words.WordIndex.load("./website/data/words.json")
 
 
 @routes.get("/")
@@ -25,10 +27,10 @@ async def favicon(request):
 def app(argv=()):
     app = web.Application()
     app.add_routes(routes)
-    app.add_routes([web.static("/static", "./static")])
+    app.add_routes([web.static("/static", "./website/static")])
     aiohttp_jinja2.setup(
         app, 
-        loader=jinja2.FileSystemLoader("./templates"),
+        loader=jinja2.FileSystemLoader("./website/templates"),
         filters={
             'quote_plus': quote_plus
         },
