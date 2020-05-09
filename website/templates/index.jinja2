@@ -8,10 +8,10 @@
   <meta name="description" content="This Word Does Not Exist uses an artificial intelligence model named GPT-2 to invent new words in the English language.">
   <meta name="author" content="Thomas Dimson">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@robo_define">
   <meta name="twitter:creator" content="@turtlesoupy">
-  <meta name="twitter:image" content="https://www.thisworddoesnotexist.com/static/twitter_card_small.png">
+  <meta name="twitter:image" content="https://www.thisworddoesnotexist.com/static/twitter_card_large.png">
   <meta name="og:description" content="1. {{word.definition | escape_double}}. 2. a word invented by a machine learning algorithm.">
   <meta property="og:url" content="https://www.thisworddoesnotexist.com">
   <meta property="og:title" content="{{word.word | escape_double}} - This Word Does Not Exist">
@@ -53,10 +53,10 @@
                 <a id="tweet-a" class="darken" href="https://twitter.com/intent/tweet?url={{url|quote_plus}}">
                     <img 
                         class="intro-tweet-button" 
-                        srcset="static/tweet_button.png, static/tweet_button_2x.png 2x"
-                        src="static/tweet_button_2x.png" 
+                        srcset="static/tweet_button.png, static/tweet_button@2x.png 2x"
+                        src="static/tweet_button@2x.png" 
                         height="19"
-                        alt="tweet">
+                        alt="Tweet Button">
                         <div class="overlay"></div>
                 </a>
             </div>
@@ -103,8 +103,12 @@
                 <span id="hint-text-value">hit enter when done </span> (<a id="word-entry-cancel" href="/">cancel</a>)
             </div>
             <div id="word-loading" class="word-loading" style="display: none;">
-                <img src="/static/ajax-loader.gif" alt="loading"/>
-                Computing...
+                <img 
+                    class="loading-spinner-in"
+                    src="/static/innerRing.png" srcset="static/innerRing.png, static/innerRing@2x.png 2x" alt="Loading Spinner (inside)"/>
+                <img 
+                    class="loading-spinner-out"
+                    src="/static/outerRing.png" srcset="static/outerRing.png, static/outerRing@2x.png 2x" alt="Loading Spinner (outside)"/>
             </div>
             <form id="word-entry-form">
                 <input type="text" id="word-entry" class="word-entry" 

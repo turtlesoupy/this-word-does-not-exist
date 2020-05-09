@@ -78,11 +78,42 @@ a.darken:hover img {
 .hint-text {
     font-size: small;
     color: rgba(255, 255, 255, 0.5);
+    height: 30px;
+    line-height: 30px;
 }
 
 .word-loading {
     font-size: small;
     color: rgba(255, 255, 255, 0.5);
+    height: 30px;
+    line-height: 30px;
+}
+
+.word-text {
+    font-size: small;
+    color: rgba(255, 255, 255, 0.5);
+    height: 30px;
+    line-height: 30px;
+}
+
+.loading-spinner-out {
+    margin-left: -30px;
+    animation: spin-back 1.5s linear infinite;
+}
+
+.loading-spinner-in {
+    margin-bottom: 5px;
+    animation: spin-forward 1.5s linear infinite;
+}
+
+@keyframes spin-forward {
+    from { transform:rotate(0deg); }
+    to { transform:rotate(360deg); }
+}
+
+@keyframes spin-back {
+    from { transform:rotate(360deg); }
+    to { transform:rotate(0deg); }
 }
 
 .word-entry {
@@ -144,6 +175,7 @@ a.darken:hover img {
    width: 100%;
    position: fixed;
    bottom: 10px;
+   background: #08082d;
 }
 
 .attribution-section {
@@ -172,7 +204,7 @@ a.darken:hover img {
     }
 }
 
-@media screen and (max-height: 550px) {
+@media screen and (max-height: 500px) {
     .definition-zone {
         height: auto;
     }
