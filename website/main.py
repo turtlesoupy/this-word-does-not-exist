@@ -143,7 +143,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--word-index-path", type=str, help="Path to word index", required=True
     )
-    parser.add_argument("--verbose", type=str, help="Verbose logging", required=True)
+    parser.add_argument("--verbose", type=str, help="Verbose logging")
     args = parser.parse_args()
 
     lvl = logging.DEBUG if args.verbose else logging.INFO
