@@ -2,7 +2,7 @@ import 'whatwg-fetch'
 
 function syncTweetURL() {
   let tweetEl = document.getElementById("tweet-a");
-  tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURI(window.location.href)}`;
+  tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}`;
 }
 function syncToWord(word, permalink) {
   let posEl = document.getElementById("definition-pos");

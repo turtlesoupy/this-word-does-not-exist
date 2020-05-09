@@ -1,5 +1,6 @@
 aiohttp>=3.6.2
 aiohttp-jinja2>=1.1.2
+cryptography>=2.9.2
 grpcio>=1.23.0
 grpcio-tools>=1.16.1
 grpclib>=0.3.1

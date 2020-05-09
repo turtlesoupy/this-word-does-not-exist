@@ -6,6 +6,7 @@ channels:
   - defaults
 dependencies:
   - beautifulsoup4>=4.8.2
+  - cryptography>=2.9.2
   - google-auth>=1.14.1
   - grpcio-tools>=1.16.1
   - numpy>=1.18.1
