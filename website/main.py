@@ -56,6 +56,9 @@ class Handlers:
         await self.captcha_session.close()
         self.word_service_channel.close()
 
+    def _word_permalink(self, view_word):
+        return self.fernet.encrypt(json.dumps(view_word.to_short_dict()).encode("utf-8")).decode("utf-8")
+
     @aiohttp_jinja2.template("index.jinja2")
     async def index(self, request):
         if "p" in request.query:
@@ -64,7 +67,11 @@ class Handlers:
             )
         else:
             w = self.word_index.random()
-        return {"word": w, "word_json": json.dumps(w.to_dict())}
+        return {
+            "word": w, 
+            "word_json": json.dumps(w.to_dict()), 
+            "permalink": self._word_permalink(w)
+        }
 
     async def _verify_recaptcha(self, ip, token):
         async with self.captcha_session.post(
@@ -95,9 +102,8 @@ class Handlers:
             raise _json_error(web.HTTPServerError, "Couldn't define")
 
         view_word = words.Word.from_protobuf(response.word)
-        permalink = self.fernet.encrypt(json.dumps(view_word.to_short_dict()).encode("utf-8")).decode("utf-8")
         return web.Response(
-            text=json.dumps({"word": view_word.to_dict(), "permalink": permalink,}), content_type="application/json",
+            text=json.dumps({"word": view_word.to_dict(), "permalink": self._view_word_permalink(view_word)}), content_type="application/json",
         )
 
     async def favicon(self, request):
@@ -118,7 +124,10 @@ def app(handlers=None):
         ]
     )
     aiohttp_jinja2.setup(
-        app, loader=jinja2.FileSystemLoader("./website/templates"), filters={"quote_plus": quote_plus},
+        app, loader=jinja2.FileSystemLoader("./website/templates"), filters={
+            "quote_plus": quote_plus,
+            "escape_double": lambda x: x.replace('"', r'\"'),
+        },
     )
     return app
 

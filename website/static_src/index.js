@@ -1,10 +1,10 @@
 import 'whatwg-fetch'
 
-function syncTweetURL() {
+function syncTweetURL(permalink) {
   let tweetEl = document.getElementById("tweet-a");
-  tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}`;
+  tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent('https://www.this-word-does-not-exist.com?p=' + permalink)}`;
 }
-function syncToWord(word, permalink) {
+function syncToWord(word, permalink, pushHistory) {
   let posEl = document.getElementById("definition-pos");
   let wordEl = document.getElementById("definition-word");
   let syllablesEl = document.getElementById("definition-syllables");
@@ -30,12 +30,13 @@ function syncToWord(word, permalink) {
     syllablesEl.innerHTML = "";
   }
 
-  if (permalink) {
+  if (pushHistory && permalink) {
     history.pushState(
-      {"word": word,}, 
+      {"word": word, "permalink": permalink}, 
       "",
       `?w=${word.word}` + (permalink ? `&p=${permalink}` : ""),
     );
+    syncTweetURL(event.state.permalink);
   }
 }
 
@@ -47,7 +48,7 @@ function mobileCheck() {
 
 window.onpopstate = function(event) {
   if (event.state) {
-    syncToWord(event.state.word);
+    syncToWord(event.state.word, event.state.permalink, false);
   }
 }
 
@@ -65,8 +66,6 @@ window.onload = () => {
   var errorText = "something went wrong, try again?"
 
   let state = {};
-
-  syncTweetURL();
 
   document.addEventListener('click', event => {
     if (event.target == writeButton) {
@@ -117,7 +116,7 @@ window.onload = () => {
             throw new Error("couldn't define word");
           }
 
-          syncToWord(json.word, json.permalink);
+          syncToWord(json.word, json.permalink, true);
           definitionEl.style.display = "";
           writeYourOwnEl.style.display = "none";
           hintText.style.display = "";

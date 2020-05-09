@@ -12,10 +12,9 @@
   <meta name="twitter:site" content="@robo_define">
   <meta name="twitter:creator" content="@turtlesoupy">
   <meta name="twitter:image" content="https://www.thisworddoesnotexist.com/static/twitter_card_large.png">
-  <meta name="twitter:description" content="We use artificial intelligence to generate, define and use new English words. One might call it perfectly cromulent">
+  <meta name="og:description" content="1. {{word.definition | escape_double}}. 2. a word that does not exist; it was invented, defined and used by a machine learning algorithm.">
   <meta property="og:url" content="https://www.thisworddoesnotexist.com">
-  <meta property="og:title" content="This Word Does Not Exist">
-  <meta property="description" content="This Word Does Not Exist uses an artificial intelligence model named GPT-2 to invent new words in the English language.">
+  <meta property="og:title" content="{{word.word | escape_double}} - This Word Does Not Exist">
 
   <link rel="stylesheet" href="/static/bundle.css">
 
@@ -35,7 +34,7 @@
       }
     
       {% if word_json %}
-      history.replaceState({"word": {{word_json | safe}}}, "");
+      history.replaceState({"word": {{word_json | safe}}, "permalink": "{{permalink | safe}}"}, "");
       {% endif %}
    </script>
    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-25938904-2"></script>
@@ -50,7 +49,7 @@
             </div>
 
             <div class="intro-right"> 
-                {% set url = 'https://www.thisworddoesnotexist.com' %}
+                {% set url = 'https://www.thisworddoesnotexist.com?p=' + permalink %}
                 <a id="tweet-a" class="darken" href="https://twitter.com/intent/tweet?url={{url|quote_plus}}">
                     <img 
                         class="intro-tweet-button" 
