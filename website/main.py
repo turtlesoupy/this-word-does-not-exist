@@ -10,7 +10,6 @@ from word_service.word_service_proto import wordservice_grpc
 from grpclib.client import Channel
 
 
-
 def _word_to_dict(w: wordservice_pb2.WordDefinition):
     if not w.word:
         return None

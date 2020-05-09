@@ -54,6 +54,6 @@ spec:
         ports:
           - containerPort: 9000
       - name: wordservice
-        image: gcr.io/this-word-does-not-exist/word-service:v17
+        image: gcr.io/this-word-does-not-exist/word-service:v18
         ports:
           - containerPort: 8000

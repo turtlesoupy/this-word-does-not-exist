@@ -76,10 +76,12 @@ a.darken:hover img {
 }
 
 .hint-text {
+    font-size: small;
     color: rgba(255, 255, 255, 0.5);
 }
 
 .word-loading {
+    font-size: small;
     color: rgba(255, 255, 255, 0.5);
 }
 
@@ -89,8 +91,10 @@ a.darken:hover img {
     background-color: rgba(255, 255, 255, 0.0);
     resize: none;
     width: 100%;
-    font-size: 2em;
+    font-size: 4em;
     outline: none;
+    padding: 0;
+    margin: 0;
 }
 
 .definition-zone ol {
@@ -152,6 +156,10 @@ a.darken:hover img {
     }
 
     .definition-zone .word {
+        font-size: 2.5em;
+    }
+
+    .word-entry {
         font-size: 2.5em;
     }
 
