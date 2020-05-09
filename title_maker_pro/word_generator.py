@@ -90,9 +90,16 @@ class WordGenerator:
             t_rstrip = ret.word.strip().lower().rstrip("s")
             l_example = ret.example.lower()
             if t_rstrip not in l_example:
+                hail_mary_candidate = max(
+                    stats.viable_candidates, key=lambda x: (len(x.candidate.definition.split()) > 3, x.score)
+                ).candidate
                 logger.info("No candidate has title in example, doing hail mary inference")
-                example_start = ret.decoded_tokens.index(self.tokenizer.encode(datasets.SpecialTokens.EXAMPLE_SEP)[0])
-                hail_mary_prefix = ret.decoded_tokens[: (example_start + 1)] + self.tokenizer.encode(f"{word} ")
+                example_start = hail_mary_candidate.decoded_tokens.index(
+                    self.tokenizer.encode(datasets.SpecialTokens.EXAMPLE_SEP)[0]
+                )
+                hail_mary_prefix = hail_mary_candidate.decoded_tokens[: (example_start + 1)] + self.tokenizer.encode(
+                    f"{word} "
+                )
                 hail_mary, hail_mary_stats = datasets.ParsedDictionaryDefinitionDataset.generate_words(
                     self.tokenizer,
                     self.forward_model,
