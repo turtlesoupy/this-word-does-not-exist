@@ -2,7 +2,9 @@ import 'whatwg-fetch'
 
 function syncTweetURL(permalink) {
   let tweetEl = document.getElementById("tweet-a");
-  tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent('https://www.this-word-does-not-exist.com?p=' + permalink)}`;
+  if (tweetEl) {
+    tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent('https://www.thisworddoesnotexist.com?p=' + permalink)}`;
+  }
 }
 function syncToWord(word, permalink, pushHistory) {
   let posEl = document.getElementById("definition-pos");
@@ -36,7 +38,7 @@ function syncToWord(word, permalink, pushHistory) {
       "",
       `?w=${word.word}` + (permalink ? `&p=${permalink}` : ""),
     );
-    syncTweetURL(event.state.permalink);
+    syncTweetURL(permalink);
   }
 }
 

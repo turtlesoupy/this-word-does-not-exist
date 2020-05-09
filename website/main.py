@@ -56,7 +56,7 @@ class Handlers:
         await self.captcha_session.close()
         self.word_service_channel.close()
 
-    def _word_permalink(self, view_word):
+    def _view_word_permalink(self, view_word):
         return self.fernet.encrypt(json.dumps(view_word.to_short_dict()).encode("utf-8")).decode("utf-8")
 
     @aiohttp_jinja2.template("index.jinja2")
@@ -70,7 +70,7 @@ class Handlers:
         return {
             "word": w, 
             "word_json": json.dumps(w.to_dict()), 
-            "permalink": self._word_permalink(w)
+            "permalink": self._view_word_permalink(w)
         }
 
     async def _verify_recaptcha(self, ip, token):
