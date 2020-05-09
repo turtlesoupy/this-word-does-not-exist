@@ -61,7 +61,10 @@ window.onload = () => {
       wordEntry.disabled = false;
       wordEntry.focus();
     } else if (event.target == cancelButton) {
-      console.log("Hello from cancel");
+      if (state.query_controller) {
+        state.query_controller.abort();
+      }
+
       event.preventDefault();
       state.cancelled = true;
       definitionEl.style.display = "";
@@ -82,6 +85,8 @@ window.onload = () => {
       grecaptcha.reset();
       const controller = new AbortController();
       const signal = controller.signal;
+
+      state.query_controller = controller;
 
       setTimeout(() => controller.abort(), 30000);
       window.fetch(`/define_word?word=${encodeURIComponent(word)}&token=${token}`, {signal})
@@ -109,9 +114,6 @@ window.onload = () => {
 
     grecaptcha.execute();
   };
-
-
-
   
   if (mobileCheck()) {
     wordEntry.addEventListener("focusout", e => {
