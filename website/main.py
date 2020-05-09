@@ -7,6 +7,7 @@ from aiohttp import web
 import words
 import argparse
 from urllib.parse import quote_plus
+from cryptography.fernet import Fernet
 from word_service.word_service_proto import wordservice_pb2
 from word_service.word_service_proto import wordservice_grpc
 from grpclib.client import Channel
@@ -15,20 +16,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _word_to_dict(w: wordservice_pb2.WordDefinition):
-    if not w.word:
-        return None
-
-    return {
-        "word": w.word,
-        "definition": w.definition,
-        "examples": list(w.examples),
-        "pos": w.pos,
-    }
-
-
 def _json_error(klass, message):
-    return klass(text=json.dumps({"error": message}))
+    return klass(text=json.dumps({"error": message}), content_type="application/json")
 
 
 def _dev_handlers():
@@ -38,6 +27,7 @@ def _dev_handlers():
         word_service_port=8000,
         word_index=words.WordIndex.load("./website/data/words.json"),
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
+        fernet_crypto_key=os.environ["FERNET_CRYPTO_KEY"],
     )
 
 
@@ -48,19 +38,19 @@ class Handlers:
         word_service_port,
         word_index,
         recaptcha_server_token,
+        fernet_crypto_key,
         captcha_timeout=10,
     ):
-        self.captcha_timeout = captcha_timeout
-
+        self.fernet = Fernet(fernet_crypto_key)
         self.word_service_channel = Channel(word_service_address, word_service_port)
         self.word_service = wordservice_grpc.WordServiceStub(self.word_service_channel)
         self.word_index = word_index
+        self.fernet_crypto_key = fernet_crypto_key
         self.recaptcha_server_token = recaptcha_server_token
+        self.captcha_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(captcha_timeout))
 
     async def on_startup(self, app):
-        self.captcha_session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(self.captcha_timeout)
-        )
+        pass
 
     async def on_cleanup(self, app):
         await self.captcha_session.close()
@@ -68,17 +58,18 @@ class Handlers:
 
     @aiohttp_jinja2.template("index.jinja2")
     async def index(self, request):
-        w = self.word_index.random()
-        return {"word": w}
+        if "p" in request.query:
+            w = words.Word.from_dict(
+                json.loads(self.fernet.decrypt(request.query["p"].encode("utf-8")).decode("utf-8"))
+            )
+        else:
+            w = self.word_index.random()
+        return {"word": w, "word_json": json.dumps(w.to_dict())}
 
     async def _verify_recaptcha(self, ip, token):
         async with self.captcha_session.post(
             "https://www.google.com/recaptcha/api/siteverify",
-            params={
-                "secret": self.recaptcha_server_token,
-                "response": token,
-                "remoteip": ip,
-            },
+            params={"secret": self.recaptcha_server_token, "response": token, "remoteip": ip,},
         ) as response:
             d = await response.json()
 
@@ -98,12 +89,15 @@ class Handlers:
         if not await self._verify_recaptcha(request.remote, token):
             raise _json_error(web.HTTPBadRequest, "Baddo")
 
-        response = await self.word_service.DefineWord(
-            wordservice_pb2.DefineWordRequest(word=word)
-        )
+        response = await self.word_service.DefineWord(wordservice_pb2.DefineWordRequest(word=word))
+
+        if not response.word or not response.word.word or not response.word.definition:
+            raise _json_error(web.HTTPServerError, "Couldn't define")
+
+        view_word = words.Word.from_protobuf(response.word)
+        permalink = self.fernet.encrypt(json.dumps(view_word.to_short_dict()).encode("utf-8")).decode("utf-8")
         return web.Response(
-            text=json.dumps({"word": _word_to_dict(response.word),}),
-            content_type="application/json",
+            text=json.dumps({"word": view_word.to_dict(), "permalink": permalink,}), content_type="application/json",
         )
 
     async def favicon(self, request):
@@ -124,9 +118,7 @@ def app(handlers=None):
         ]
     )
     aiohttp_jinja2.setup(
-        app,
-        loader=jinja2.FileSystemLoader("./website/templates"),
-        filters={"quote_plus": quote_plus},
+        app, loader=jinja2.FileSystemLoader("./website/templates"), filters={"quote_plus": quote_plus},
     )
     return app
 
@@ -134,15 +126,9 @@ def app(handlers=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", type=str, help="Unix socket path")
-    parser.add_argument(
-        "--word-service-address", type=str, help="Word service address", required=True
-    )
-    parser.add_argument(
-        "--word-service-port", type=int, help="Word service port", required=True
-    )
-    parser.add_argument(
-        "--word-index-path", type=str, help="Path to word index", required=True
-    )
+    parser.add_argument("--word-service-address", type=str, help="Word service address", required=True)
+    parser.add_argument("--word-service-port", type=int, help="Word service port", required=True)
+    parser.add_argument("--word-index-path", type=str, help="Path to word index", required=True)
     parser.add_argument("--verbose", type=str, help="Verbose logging")
     args = parser.parse_args()
 
@@ -155,6 +141,7 @@ if __name__ == "__main__":
         args.word_service_port,
         word_index=wi,
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
+        fernet_crypto_key=os.environ["FERNET_CRYPTO_KEY"],
     )
 
     web.run_app(app(handlers), path=args.path)

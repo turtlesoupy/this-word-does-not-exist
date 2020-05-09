@@ -33,6 +33,10 @@
             recaptchaCallback(token);
         }
       }
+    
+      {% if word_json %}
+      history.replaceState({"word": {{word_json | safe}}}, "");
+      {% endif %}
    </script>
    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-25938904-2"></script>
    <script async defer src="https://www.google.com/recaptcha/api.js"></script>
@@ -47,11 +51,12 @@
 
             <div class="intro-right"> 
                 {% set url = 'https://www.thisworddoesnotexist.com' %}
-                <a class="darken" href="https://twitter.com/intent/tweet?url={{url|quote_plus}}">
+                <a id="tweet-a" class="darken" href="https://twitter.com/intent/tweet?url={{url|quote_plus}}">
                     <img 
                         class="intro-tweet-button" 
                         srcset="static/tweet_button.png, static/tweet_button_2x.png 2x"
                         src="static/tweet_button_2x.png" 
+                        height="19"
                         alt="tweet">
                         <div class="overlay"></div>
                 </a>
