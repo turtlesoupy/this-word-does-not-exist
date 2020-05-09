@@ -10,6 +10,7 @@ import re
 import torch
 import random
 import stanza
+import time
 from collections import Counter
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
@@ -54,6 +55,14 @@ class GeneratedWord:
     topic: Optional[str]
     definition: str
     example: Optional[str]
+    decoded: Optional[str]
+    decoded_tokens: Optional[List[int]]
+
+
+@dataclass
+class GeneratedWordCandidate:
+    score: float
+    candidate: GeneratedWord
 
 
 class Blacklist:
@@ -248,21 +257,26 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         num_returned: int = 0
         num_example_pos_match_failed: int = 0
         num_example_missing_title: int = 0
+        wall_time: float = 0.0
+        wall_stanza_time: float = 0.0
 
         def __str__(self):
-            return f"iterations={self.num_iterations} | " + ", ".join(
-                f"{k} {v / self.num_items_considered:.2f}@{v}"
-                for k, v in (
-                    ("items_considered", self.num_items_considered),
-                    ("failed_match", self.num_failed_match),
-                    ("blacklist_filtered", self.num_blacklist_filtered),
-                    ("seen_filtered", self.num_seen_filtered),
-                    ("proper_noun_filtered", self.num_proper_noun_filtered),
-                    ("example_missing", self.num_example_missing),
-                    ("example_missing_title", self.num_example_missing_title),
-                    ("example_pos_match_failed", self.num_example_pos_match_failed),
-                    ("user_filtered", self.num_user_filtered),
-                    ("returned", self.num_returned),
+            return (
+                f"iterations={self.num_iterations} time={self.wall_time} stanza_time={self.wall_stanza_time} | "
+                + ", ".join(
+                    f"{k} {v / self.num_items_considered:.2f}@{v}"
+                    for k, v in (
+                        ("items_considered", self.num_items_considered),
+                        ("failed_match", self.num_failed_match),
+                        ("blacklist_filtered", self.num_blacklist_filtered),
+                        ("seen_filtered", self.num_seen_filtered),
+                        ("proper_noun_filtered", self.num_proper_noun_filtered),
+                        ("example_missing", self.num_example_missing),
+                        ("example_missing_title", self.num_example_missing_title),
+                        ("example_pos_match_failed", self.num_example_pos_match_failed),
+                        ("user_filtered", self.num_user_filtered),
+                        ("returned", self.num_returned),
+                    )
                 )
             )
 
@@ -348,12 +362,15 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         max_iterations=10,
         generation_args={},
         blacklist=None,
+        example_title_match=True,
         example_match_pos_pipeline=None,
         dedupe_titles=True,
         user_filter=None,
         filter_proper_nouns=False,
         use_custom_generate=True,
     ):
+        start = time.time()
+        viable_candidates = []
         ret = []
         num_iteration = 0
         if isinstance(prefix, str):
@@ -430,6 +447,8 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     example=example and example.strip(),
                     pos=pos and pos.strip(),
                     topic=topic and topic.strip(),
+                    decoded=decoded,
+                    decoded_tokens=sentence_tokens,
                 )
 
                 if blacklist and blacklist.contains(title):
@@ -446,6 +465,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
                 if not example or not example.strip():
                     stats.num_example_missing += 1
+                    viable_candidates.append(GeneratedWordCandidate(0.0, generated_word))
                     continue
                 else:
                     t_rstrip = title.strip().lower().rstrip("s")
@@ -455,21 +475,25 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                         if pos and example_match_pos_pipeline:
                             pos_removed = re.sub(r"\[.*\]", "", pos).strip()
                             pos_removed = re.sub(r"plural", "", pos_removed).strip()
+                            start_stanza = time.time()
                             pos_guess = cls.approx_pos(
                                 example_match_pos_pipeline, l_example, start_title_idx, len(t_rstrip)
                             )
+                            stats.wall_stanza_time += time.time() - start_stanza
 
                             if pos_removed not in oed_to_upos:
                                 logger.warn(f"No UPOS mapping for {pos_removed} - {title} in '{example}'': {pos_guess}")
                                 stats.num_example_pos_match_failed += 1
+                                viable_candidates.append(GeneratedWordCandidate(0.9, generated_word))
                                 continue
                             elif pos_guess not in oed_to_upos[pos_removed]:
                                 stats.num_example_pos_match_failed += 1
+                                viable_candidates.append(GeneratedWordCandidate(1.0, generated_word))
                                 continue
 
                     except ValueError:
-                        start_title_idx = None
                         stats.num_example_missing_title += 1
+                        viable_candidates.append(GeneratedWordCandidate(0.5, generated_word))
                         continue
 
                 if user_filter and not user_filter(generated_word):
@@ -480,6 +504,8 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     seen_titles.add(generated_word.word.lower())
 
         stats.num_returned = len(ret)
+        stats.viable_candidates = viable_candidates
+        stats.wall_time = time.time() - start
         return ret[:num], stats
 
     def _make_examples(self, tokenizer, entry: dictionary_definition.Entry):

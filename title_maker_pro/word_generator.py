@@ -72,8 +72,8 @@ class WordGenerator:
             self.forward_model,
             num=1,
             prefix=prefix,
-            max_iterations=3,
-            generation_args=dict(top_k=75, num_return_sequences=6, max_length=self.approx_max_length, do_sample=True,),
+            max_iterations=1,
+            generation_args=dict(top_k=75, num_return_sequences=5, max_length=self.approx_max_length, do_sample=True,),
             example_match_pos_pipeline=self.stanza_pos_pipeline,
             dedupe_titles=False,
             user_filter=user_filter,
@@ -81,10 +81,38 @@ class WordGenerator:
             use_custom_generate=True,
         )
 
-        logger.info(f"Generation stats: {stats}")
+        logger.info(f"Generation stats: {stats} (found {len(expanded)} true and {len(stats.viable_candidates)} viable)")
 
         if expanded:
             return expanded[0]
+        elif stats.viable_candidates:
+            ret = max(stats.viable_candidates, key=lambda x: x.score).candidate
+            t_rstrip = ret.word.strip().lower().rstrip("s")
+            l_example = ret.example.lower()
+            if t_rstrip not in l_example:
+                logger.info("No candidate has title in example, doing hail mary inference")
+                example_start = ret.decoded_tokens.index(self.tokenizer.encode(datasets.SpecialTokens.EXAMPLE_SEP)[0])
+                hail_mary_prefix = ret.decoded_tokens[: (example_start + 1)] + self.tokenizer.encode(f"{word} ")
+                hail_mary, hail_mary_stats = datasets.ParsedDictionaryDefinitionDataset.generate_words(
+                    self.tokenizer,
+                    self.forward_model,
+                    num=1,
+                    prefix=hail_mary_prefix,
+                    max_iterations=1,
+                    generation_args=dict(
+                        top_k=75, num_return_sequences=1, max_length=self.approx_max_length, do_sample=True,
+                    ),
+                    example_match_pos_pipeline=None,
+                    dedupe_titles=False,
+                    user_filter=user_filter,
+                    filter_proper_nouns=False,
+                    use_custom_generate=True,
+                )
+                logger.info(f"Hail mary stats: {hail_mary_stats}")
+                if hail_mary:
+                    return hail_mary[0]
+                else:
+                    return ret
         else:
             return None
 
