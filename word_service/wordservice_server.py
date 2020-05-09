@@ -1,3 +1,4 @@
+import re
 import argparse
 from concurrent import futures
 import time
@@ -32,9 +33,10 @@ class WordServiceServicer(wordservice_pb2_grpc.WordServiceServicer):
         if gen_word is None:
             return wordservice_pb2.WordDefinition()
         else:
+            definition = re.sub(gen_word.word, gen_word.word, gen_word.definition, flags=re.IGNORECASE)
             return wordservice_pb2.WordDefinition(
                 word=gen_word.word,
-                definition=gen_word.definition,
+                definition=definition,
                 pos=gen_word.pos,
                 examples=[gen_word.example],
                 syllables=self.hyphenator.syllables(gen_word.word),

@@ -111,8 +111,8 @@ class WordGenerator:
                 logger.info(f"Hail mary stats: {hail_mary_stats}")
                 if hail_mary:
                     return hail_mary[0]
-                else:
-                    return ret
+
+            return ret
         else:
             return None
 
