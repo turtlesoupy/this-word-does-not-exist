@@ -1,5 +1,4 @@
 import argparse
-import traceback
 from concurrent import futures
 import time
 import os

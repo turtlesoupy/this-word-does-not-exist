@@ -4,6 +4,7 @@ import random
 from dataclasses import dataclass
 from typing import Optional, List
 
+
 @dataclass
 class Word:
     word: str

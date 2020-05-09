@@ -20,14 +20,22 @@
   <link rel="stylesheet" href="/static/bundle.css">
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=UA-25938904-2"></script>
-  <script type="text/javascript" async src="/static/bundle.js"></script>
   <script type="text/javascript" async src="https://platform.twitter.com/widgets.js"></script>
   <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'UA-25938904-2');
+
+      var recaptchaCallback;
+      function _recaptchaCallback(token) {
+        if (recaptchaCallback !== undefined) {
+            recaptchaCallback(token);
+        }
+      }
    </script>
+   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+   <script type="text/javascript" src="/static/bundle.js" async></script>
 </head>
 
 <body>
@@ -99,6 +107,11 @@
                     autocomplete="off" autocorrect="off" autocapitalize="off" 
                     spellcheck="false" placeholder="word">
             </form> 
+            <div class="g-recaptcha"
+                data-sitekey="6LcRofQUAAAAAHdgsIPDWafbvcSyhMZplyg3LzS7"
+                data-callback="_recaptchaCallback"
+                data-size="invisible">
+            </div>
         </div>
 
         <div class="attribution">

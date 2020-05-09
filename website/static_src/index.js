@@ -69,27 +69,37 @@ window.onload = () => {
     hintTextValue.innerHTML = defaultHintText;
     loadingText.style.display = "";
     document.activeElement.blur()
-    window.fetch(`/define_word?word=${encodeURIComponent(word)}`)
-      .then(res => res.json())
-      .then(json => {
-        console.log(json);
-        if (!json.word) {
-          errorText = "we couldn't define that word"
-          throw new Error("couldn't define word");
-        }
 
-        syncToWord(json.word);
-        definitionEl.style.display = "";
-        writeYourOwnEl.style.display = "none";
-        hintText.style.display = "";
-        loadingText.style.display = "none";
-      })
-      .catch((error) => {
-        hintTextValue.innerHTML = errorText;
-        hintText.style.display = "";
-        loadingText.style.display = "none";
-        wordEntry.disabled = false;
-        wordEntry.focus();
-      });
+    recaptchaCallback = (token) => {
+      grecaptcha.reset();
+      const controller = new AbortController();
+      const signal = controller.signal;
+
+      setTimeout(() => controller.abort(), 30000);
+      window.fetch(`/define_word?word=${encodeURIComponent(word)}&token=${token}`, {signal})
+        .then(res => res.json())
+        .then(json => {
+          if (!json.word) {
+            errorText = "we couldn't define that word"
+            throw new Error("couldn't define word");
+          }
+
+          syncToWord(json.word);
+          definitionEl.style.display = "";
+          writeYourOwnEl.style.display = "none";
+          hintText.style.display = "";
+          loadingText.style.display = "none";
+        })
+        .catch((error) => {
+          hintTextValue.innerHTML = errorText;
+          hintText.style.display = "";
+          loadingText.style.display = "none";
+          wordEntry.disabled = false;
+          wordEntry.focus();
+        });
+    };
+
+    grecaptcha.execute();
+
   }, false);
 };
