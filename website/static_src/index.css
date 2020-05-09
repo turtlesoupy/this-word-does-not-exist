@@ -19,6 +19,11 @@ a:hover {
     color: hotpink;
 }
 
+a.disabled, a.disabled:visited, a.disabled:hover {
+    pointer-events: none;
+    color: rgba(255, 255, 255, 0.5);
+}
+
 .site-wrapper {
     width: 450px;
     margin: auto;
@@ -182,6 +187,13 @@ a.darken:hover img {
     margin-bottom: 0.2em;
 }
 
+.disclaimer {
+    font-size: x-small;
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+    margin-top: 5px;
+}
+
 @media only screen and (orientation : portrait)  {
     .site-wrapper {
         width: 95%;
@@ -204,7 +216,7 @@ a.darken:hover img {
     }
 }
 
-@media screen and (max-height: 500px) {
+@media screen and (max-height: 600px) {
     .definition-zone {
         height: auto;
     }

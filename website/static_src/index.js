@@ -67,6 +67,8 @@ window.onload = () => {
   let defaultHintText = hintTextValue.innerHTML;
   var errorText = "something went wrong, try again?"
 
+  writeButton.classList.remove(["disabled"]);
+
   let state = {};
 
   document.addEventListener('click', event => {
