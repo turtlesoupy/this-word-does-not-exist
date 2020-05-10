@@ -159,6 +159,7 @@ window.onload = () => {
 
   wordEntryForm.addEventListener("submit", e => {
     e.preventDefault();
+    state.cancelled = true;
     doSubmit();
   }, false);
 };

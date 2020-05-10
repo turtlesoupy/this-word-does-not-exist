@@ -102,7 +102,7 @@ a.darken:hover img {
 }
 
 .loading-spinner-out {
-    margin-left: -30px;
+    margin-left: -29px;
     animation: spin-back 1.5s linear infinite;
 }
 
@@ -179,7 +179,7 @@ a.darken:hover img {
    font-size: small;
    width: 100%;
    position: fixed;
-   bottom: 15px;
+   bottom: 22px;
    background: #08082d;
 }
 
@@ -191,7 +191,7 @@ a.darken:hover img {
     font-size: x-small;
     color: rgba(255, 255, 255, 0.5);
     font-style: italic;
-    margin-top: 15px;
+    margin-top: 4px;
 }
 
 @media only screen and (orientation : portrait)  {
