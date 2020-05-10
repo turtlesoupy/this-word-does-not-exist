@@ -28,6 +28,7 @@ def _dev_handlers():
         word_index=words.WordIndex.load("./website/data/words.json"),
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
         fernet_crypto_key=os.environ["FERNET_CRYPTO_KEY"],
+        gcloud_api_key=os.environ["GCLOUD_API_KEY"]
     )
 
 
@@ -39,6 +40,7 @@ class Handlers:
         word_index,
         recaptcha_server_token,
         fernet_crypto_key,
+        gcloud_api_key,
         captcha_timeout=10,
     ):
         self.fernet = Fernet(fernet_crypto_key)
@@ -48,6 +50,7 @@ class Handlers:
         self.fernet_crypto_key = fernet_crypto_key
         self.recaptcha_server_token = recaptcha_server_token
         self.captcha_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(captcha_timeout))
+        self.gcloud_api_key = gcloud_api_key
 
     async def on_startup(self, app):
         pass
@@ -96,7 +99,10 @@ class Handlers:
         if not await self._verify_recaptcha(request.remote, token):
             raise _json_error(web.HTTPBadRequest, "Baddo")
 
-        response = await self.word_service.DefineWord(wordservice_pb2.DefineWordRequest(word=word))
+        response = await self.word_service.DefineWord(
+            wordservice_pb2.DefineWordRequest(word=word),
+            metadata=(('x-api-key', self.gcloud_api_key),)
+        )
 
         if not response.word or not response.word.word or not response.word.definition:
             raise _json_error(web.HTTPServerError, "Couldn't define")
@@ -151,6 +157,7 @@ if __name__ == "__main__":
         word_index=wi,
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
         fernet_crypto_key=os.environ["FERNET_CRYPTO_KEY"],
+        gcloud_api_key=os.environ["GCLOUD_API_KEY"],
     )
 
     web.run_app(app(handlers), path=args.path)
