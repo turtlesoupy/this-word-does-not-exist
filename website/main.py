@@ -4,14 +4,16 @@ import jinja2
 import aiohttp_jinja2
 import aiohttp
 from aiohttp import web
-import words
 import argparse
 from urllib.parse import quote_plus
 from cryptography.fernet import Fernet
+import words
 from word_service.word_service_proto import wordservice_pb2
 from word_service.word_service_proto import wordservice_grpc
 from grpclib.client import Channel
 import logging
+from async_lru import alru_cache
+from title_maker_pro.bad_words import grawlix
 
 logger = logging.getLogger(__name__)
 
@@ -95,20 +97,31 @@ class Handlers:
 
             return bool(d.get("success"))
 
+    @alru_cache(maxsize=65536)
+    async def _cached_fetch_word_definition(self, word):
+        return await self.word_service.DefineWord(
+            wordservice_pb2.DefineWordRequest(word=word),
+            metadata=(('x-api-key', self.gcloud_api_key),)
+        )
+
     async def define_word(self, request):
         try:
             token = request.query["token"]
-            word = request.query["word"]
+            word = request.query["word"].strip()
         except KeyError:
             raise _json_error(web.HTTPBadRequest, "Expected token and word args")
+
+        if len(word) > 40:
+            return _json_error(web.HTTPBadRequest, "Too long word")
+        elif len(word) == 0:
+            return _json_error(web.HTTPBadRequest, "Too short word")
+
+        word = grawlix(word)
 
         if not await self._verify_recaptcha(request.remote, token):
             raise _json_error(web.HTTPBadRequest, "Baddo")
 
-        response = await self.word_service.DefineWord(
-            wordservice_pb2.DefineWordRequest(word=word),
-            metadata=(('x-api-key', self.gcloud_api_key),)
-        )
+        response = await self._cached_fetch_word_definition(word)
 
         if not response.word or not response.word.word or not response.word.definition:
             raise _json_error(web.HTTPServerError, "Couldn't define")

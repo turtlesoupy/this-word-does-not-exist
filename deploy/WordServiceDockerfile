@@ -23,6 +23,8 @@ RUN [ "/bin/bash", "-c", "source activate title_maker_pro && python -c 'from tra
 COPY ./title_maker_pro title_maker_pro
 COPY ./word_service word_service
 
+STOPSIGNAL SIGQUIT
+
 ENTRYPOINT ["/bin/bash", "-c", "source activate title_maker_pro && \
   PYTHONPATH=.:$PYTHONPATH \
   python word_service/wordservice_server.py \

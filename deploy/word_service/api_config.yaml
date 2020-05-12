@@ -38,7 +38,7 @@ apis:
 #
 # API usage restrictions.
 #
-usage:
-  rules:
-  - selector: endpoints.word_service.WordService.DefineWord
-    allow_unregistered_calls: true
+#usage:
+#  rules:
+#  - selector: endpoints.word_service.WordService.DefineWord
+#    allow_unregistered_calls: true

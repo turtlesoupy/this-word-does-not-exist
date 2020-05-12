@@ -7,7 +7,7 @@ from word_service_proto import wordservice_pb2_grpc
 
 def run(host, port, api_key, auth_token, timeout, use_tls, word):
     if use_tls:
-        with open("../roots.pem", "rb") as f:
+        with open("nginx.pem", "rb") as f:
             creds = grpc.ssl_channel_credentials(f.read())
         channel = grpc.secure_channel("{}:{}".format(host, port), creds)
     else:
