@@ -75,8 +75,11 @@ def main(args):
     )
     h_en = Hyphenator('en_US')
 
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    logging.info(f"Warming up with word generation")
+    gen_word = word_generator.generate_word()
+    logging.info(f"Generated {gen_word}")
 
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     wordservice_pb2_grpc.add_WordServiceServicer_to_server(WordServiceServicer(word_generator, h_en), server)
     server.add_insecure_port("[::]:{}".format(port))
     server.start()

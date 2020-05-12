@@ -1,9 +1,15 @@
 import 'whatwg-fetch'
 
-function syncTweetURL(permalink) {
+function wordURL(word, permalink, relative) {
+  const base = relative ? "" : "https://www.thisworddoesnotexist.com";
+  return `${base}/w/${encodeURIComponent(word)}` + (permalink ? `/${permalink}` : "");
+}
+
+
+function syncTweetURL(url) {
   let tweetEl = document.getElementById("tweet-a");
   if (tweetEl) {
-    tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent('https://www.thisworddoesnotexist.com?p=' + permalink)}`;
+    tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`;
   }
 }
 function syncToWord(word, permalink, pushHistory) {
@@ -36,9 +42,9 @@ function syncToWord(word, permalink, pushHistory) {
     history.pushState(
       {"word": word, "permalink": permalink}, 
       "",
-      `?w=${word.word}` + (permalink ? `&p=${permalink}` : ""),
+      wordURL(word.word, permalink, true)
     );
-    syncTweetURL(permalink);
+    syncTweetURL(wordURL(word.word, permalink, false));
   }
 }
 
@@ -68,6 +74,15 @@ window.onload = () => {
   var errorText = "something went wrong, try again?"
 
   writeButton.classList.remove(["disabled"]);
+
+  // Swap main index page for permalink
+  if (history && history.state && history.state.word && history.state.permalink) {
+    history.replaceState(
+      history.state,
+      "",
+      wordURL(history.state.word.word, history.state.permalink, true)
+    );
+  }
 
   let state = {};
 
@@ -127,6 +142,7 @@ window.onload = () => {
           loadingText.style.display = "none";
         })
         .catch((error) => {
+          console.log(error);
           hintTextValue.innerHTML = errorText;
           hintText.style.display = "";
           loadingText.style.display = "none";

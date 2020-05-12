@@ -62,19 +62,25 @@ class Handlers:
     def _view_word_permalink(self, view_word):
         return self.fernet.encrypt(json.dumps(view_word.to_short_dict()).encode("utf-8")).decode("utf-8")
 
+    def _index_response(self, word):
+        return {
+            "word": word, 
+            "word_json": json.dumps(word.to_dict()), 
+            "permalink": self._view_word_permalink(word)
+        }
+
     @aiohttp_jinja2.template("index.jinja2")
     async def index(self, request):
-        if "p" in request.query:
-            w = words.Word.from_dict(
-                json.loads(self.fernet.decrypt(request.query["p"].encode("utf-8")).decode("utf-8"))
-            )
-        else:
-            w = self.word_index.random()
-        return {
-            "word": w, 
-            "word_json": json.dumps(w.to_dict()), 
-            "permalink": self._view_word_permalink(w)
-        }
+        return self._index_response(self.word_index.random())
+
+    @aiohttp_jinja2.template("index.jinja2")
+    async def word(self, request):
+        _ = request.match_info["word"]
+        encrypted = request.match_info["encrypt"]
+        w = words.Word.from_dict(
+            json.loads(self.fernet.decrypt(encrypted.encode("utf-8")).decode("utf-8"))
+        )
+        return self._index_response(w)
 
     async def _verify_recaptcha(self, ip, token):
         async with self.captcha_session.post(
@@ -124,6 +130,7 @@ def app(handlers=None):
     app.add_routes(
         [
             web.get("/", handlers.index),
+            web.get("/w/{word}/{encrypt}", handlers.word),
             web.get("/define_word", handlers.define_word),
             web.get("/favicon.ico", handlers.favicon),
             web.static("/static", "./website/static"),

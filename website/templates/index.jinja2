@@ -20,6 +20,12 @@
   <script async type="text/javascript" src="/static/bundle.js"></script>
   <script async type="text/javascript" src="https://platform.twitter.com/widgets.js"></script>
   <script>
+      {% if word_json %}
+      if (history !== undefined) {
+        history.replaceState({"word": {{word_json | safe}}, "permalink": "{{permalink | safe}}"}, "");
+      }
+      {% endif %}
+
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
@@ -31,10 +37,6 @@
             recaptchaCallback(token);
         }
       }
-    
-      {% if word_json %}
-      history.replaceState({"word": {{word_json | safe}}, "permalink": "{{permalink | safe}}"}, "");
-      {% endif %}
    </script>
    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-25938904-2"></script>
    <script async defer src="https://www.google.com/recaptcha/api.js"></script>
@@ -52,8 +54,8 @@
                 <a id="tweet-a" class="darken" href="https://twitter.com/intent/tweet?url={{url|quote_plus}}">
                     <img 
                         class="intro-tweet-button" 
-                        srcset="static/tweet_button.png, static/tweet_button@2x.png 2x"
-                        src="static/tweet_button@2x.png" 
+                        srcset="/static/tweet_button.png, /static/tweet_button@2x.png 2x"
+                        src="/static/tweet_button@2x.png" 
                         height="19"
                         alt="Tweet Button">
                         <div class="overlay"></div>
@@ -104,10 +106,10 @@
             <div id="word-loading" class="word-loading" style="display: none;">
                 <img 
                     class="loading-spinner-in"
-                    src="/static/innerRing.png" srcset="static/innerRing.png, static/innerRing@2x.png 2x" alt="Loading Spinner (inside)"/>
+                    src="/static/innerRing.png" srcset="/static/innerRing.png, /static/innerRing@2x.png 2x" alt="Loading Spinner (inside)"/>
                 <img 
                     class="loading-spinner-out"
-                    src="/static/outerRing.png" srcset="static/outerRing.png, static/outerRing@2x.png 2x" alt="Loading Spinner (outside)"/>
+                    src="/static/outerRing.png" srcset="/static/outerRing.png, /static/outerRing@2x.png 2x" alt="Loading Spinner (outside)"/>
             </div>
             <form id="word-entry-form">
                 <input type="text" id="word-entry" class="word-entry" 

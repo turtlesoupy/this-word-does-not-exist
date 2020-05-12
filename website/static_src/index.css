@@ -3,6 +3,7 @@ body {
   color: white;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   letter-spacing: 0.021em;
+  font-display: swap;
 }
 
 a {
@@ -78,6 +79,10 @@ a.darken:hover img {
   margin-right: auto;
   height: 50vh;
   color: white;
+}
+
+.grecaptcha-badge {
+     z-index: 99999999999999999;   
 }
 
 .hint-text {
