@@ -7,14 +7,16 @@ import backoff
 from aiohttp import web
 import argparse
 from urllib.parse import quote_plus
-from cryptography.fernet import Fernet
+import hashlib
 import words
+import hmac
 from word_service.word_service_proto import wordservice_pb2
 from word_service.word_service_proto import wordservice_grpc
 from grpclib.client import Channel
 from grpclib.exceptions import GRPCError
 from grpclib.const import Status
 import logging
+import base64
 from async_lru import alru_cache
 from title_maker_pro.bad_words import grawlix
 
@@ -32,7 +34,7 @@ def _dev_handlers():
         word_service_port=8000,
         word_index=words.WordIndex.load("./website/data/words.json"),
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
-        fernet_crypto_key=os.environ["FERNET_CRYPTO_KEY"],
+        permalink_hmac_key=os.environ["PERMALINK_HMAC_KEY"],
         gcloud_api_key=os.environ["GCLOUD_API_KEY"]
     )
 
@@ -56,15 +58,14 @@ class Handlers:
         word_service_port,
         word_index,
         recaptcha_server_token,
-        fernet_crypto_key,
+        permalink_hmac_key,
         gcloud_api_key,
         captcha_timeout=10,
     ):
-        self.fernet = Fernet(fernet_crypto_key)
         self.word_service_channel = Channel(word_service_address, word_service_port)
         self.word_service = wordservice_grpc.WordServiceStub(self.word_service_channel)
         self.word_index = word_index
-        self.fernet_crypto_key = fernet_crypto_key
+        self.permalink_hmac_key = permalink_hmac_key.encode("utf-8")
         self.recaptcha_server_token = recaptcha_server_token
         self.captcha_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(captcha_timeout))
         self.gcloud_api_key = gcloud_api_key
@@ -77,14 +78,18 @@ class Handlers:
         self.word_service_channel.close()
 
     def _view_word_permalink(self, view_word):
-        return self.fernet.encrypt(json.dumps(view_word.to_short_dict()).encode("utf-8")).decode("utf-8")
+        payload = base64.urlsafe_b64encode(json.dumps(view_word.to_short_dict()).encode("utf-8"))
+        signature = base64.urlsafe_b64encode(hmac.new(self.permalink_hmac_key, payload, digestmod=hashlib.sha256).digest())
+        permalink = f"{payload.decode('utf-8')}.{signature.decode('utf-8')}"
+        return permalink
 
-    def _index_response(self, word):
+    def _index_response(self, word, word_in_title=False):
         return {
             "word": word, 
             "word_json": json.dumps(word.to_dict()), 
             "word_exists": bool(word.probably_exists),
-            "permalink": self._view_word_permalink(word)
+            "permalink": self._view_word_permalink(word),
+            "word_in_title": bool(word_in_title),
         }
 
     @aiohttp_jinja2.template("index.jinja2")
@@ -95,10 +100,14 @@ class Handlers:
     async def word(self, request):
         _ = request.match_info["word"]
         encrypted = request.match_info["encrypt"]
-        w = words.Word.from_dict(
-            json.loads(self.fernet.decrypt(encrypted.encode("utf-8")).decode("utf-8"))
-        )
-        return self._index_response(w)
+        payload, signature = encrypted.split(".")
+        h = hmac.new(self.permalink_hmac_key, payload.encode("utf-8"), digestmod=hashlib.sha256)
+        if not hmac.compare_digest(h.digest(), base64.urlsafe_b64decode(signature)):
+            raise _json_error(web.HTTPBadRequest, "Bad digest")
+
+        word_dict = json.loads(base64.urlsafe_b64decode(payload).decode("utf-8"))
+        w = words.Word.from_dict(word_dict)
+        return self._index_response(w, word_in_title=True)
 
     async def _verify_recaptcha(self, ip, token):
         async with self.captcha_session.post(
@@ -136,8 +145,8 @@ class Handlers:
 
         word = grawlix(word)
 
-        # if not await self._verify_recaptcha(request.remote, token):
-        #     raise _json_error(web.HTTPBadRequest, "Baddo")
+        if not await self._verify_recaptcha(request.remote, token):
+            raise _json_error(web.HTTPBadRequest, "Baddo")
 
         try:
             response = await self._cached_fetch_word_definition(word)
@@ -174,6 +183,7 @@ def app(handlers=None):
     aiohttp_jinja2.setup(
         app, loader=jinja2.FileSystemLoader("./website/templates"), filters={
             "quote_plus": quote_plus,
+            "remove_period": lambda x: x.rstrip("."),
             "escape_double": lambda x: x.replace('"', r'\"'),
             "strip_quotes": lambda x: x.strip('"'),
         },
@@ -199,7 +209,7 @@ if __name__ == "__main__":
         args.word_service_port,
         word_index=wi,
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
-        fernet_crypto_key=os.environ["FERNET_CRYPTO_KEY"],
+        permalink_hmac_key=os.environ["PERMALINK_HMAC_KEY"],
         gcloud_api_key=os.environ["GCLOUD_API_KEY"],
     )
 
