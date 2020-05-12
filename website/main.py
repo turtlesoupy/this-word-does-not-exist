@@ -83,12 +83,17 @@ class Handlers:
         permalink = f"{payload.decode('utf-8')}.{signature.decode('utf-8')}"
         return permalink
 
+    def _full_permalink_url(self, view_word, permalink):
+        return f"https://www.thisworddoesnotexist.com/w/{quote_plus(view_word.word)}/{permalink}"
+
     def _index_response(self, word, word_in_title=False):
+        permalink = self._view_word_permalink(word)
         return {
             "word": word, 
             "word_json": json.dumps(word.to_dict()), 
             "word_exists": bool(word.probably_exists),
-            "permalink": self._view_word_permalink(word),
+            "permalink": permalink,
+            "full_url": self._full_permalink_url(word, permalink),
             "word_in_title": bool(word_in_title),
         }
 

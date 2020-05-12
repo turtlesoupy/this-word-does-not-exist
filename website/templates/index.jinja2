@@ -64,8 +64,7 @@
             </div>
 
             <div class="intro-right"> 
-                {% set url = 'https://www.thisworddoesnotexist.com?p=' + permalink %}
-                <a id="tweet-a" class="darken" href="https://twitter.com/intent/tweet?url={{url|quote_plus}}">
+                <a id="tweet-a" class="darken" href="https://twitter.com/intent/tweet?url={{full_url|quote_plus}}">
                     <img 
                         class="intro-tweet-button" 
                         srcset="/static/tweet_button.png, /static/tweet_button@2x.png 2x"
