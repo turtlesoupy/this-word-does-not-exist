@@ -40,6 +40,7 @@ class WordServiceServicer(wordservice_pb2_grpc.WordServiceServicer):
                 pos=gen_word.pos,
                 examples=[gen_word.example],
                 syllables=self.hyphenator.syllables(gen_word.word),
+                probablyExists=self.word_generator.probably_real_word(gen_word.word),
             )
 
     def GenerateWord(self, request, context):

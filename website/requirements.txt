@@ -5,3 +5,4 @@ grpcio>=1.23.0
 grpcio-tools>=1.16.1
 grpclib>=0.3.1
 async-lru>=1.0.2
+backoff>=1.10.0

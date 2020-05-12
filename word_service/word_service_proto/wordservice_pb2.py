@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='endpoints.word_service',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x11wordservice.proto\x12\x16\x65ndpoints.word_service\"d\n\x0eWordDefinition\x12\x0c\n\x04word\x18\x01 \x01(\t\x12\x12\n\ndefinition\x18\x02 \x01(\t\x12\x0b\n\x03pos\x18\x03 \x01(\t\x12\x10\n\x08\x65xamples\x18\x04 \x03(\t\x12\x11\n\tsyllables\x18\x05 \x03(\t\"!\n\x11\x44\x65\x66ineWordRequest\x12\x0c\n\x04word\x18\x01 \x01(\t\"J\n\x12\x44\x65\x66ineWordResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition\"/\n\x19WordFromDefinitionRequest\x12\x12\n\ndefinition\x18\x01 \x01(\t\"R\n\x1aWordFromDefinitionResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition\"\x15\n\x13GenerateWordRequest\"L\n\x14GenerateWordResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition2\xe0\x02\n\x0bWordService\x12\x65\n\nDefineWord\x12).endpoints.word_service.DefineWordRequest\x1a*.endpoints.word_service.DefineWordResponse\"\x00\x12}\n\x12WordFromDefinition\x12\x31.endpoints.word_service.WordFromDefinitionRequest\x1a\x32.endpoints.word_service.WordFromDefinitionResponse\"\x00\x12k\n\x0cGenerateWord\x12+.endpoints.word_service.GenerateWordRequest\x1a,.endpoints.word_service.GenerateWordResponse\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n\x11wordservice.proto\x12\x16\x65ndpoints.word_service\"|\n\x0eWordDefinition\x12\x0c\n\x04word\x18\x01 \x01(\t\x12\x12\n\ndefinition\x18\x02 \x01(\t\x12\x0b\n\x03pos\x18\x03 \x01(\t\x12\x10\n\x08\x65xamples\x18\x04 \x03(\t\x12\x11\n\tsyllables\x18\x05 \x03(\t\x12\x16\n\x0eprobablyExists\x18\x06 \x01(\x08\"!\n\x11\x44\x65\x66ineWordRequest\x12\x0c\n\x04word\x18\x01 \x01(\t\"J\n\x12\x44\x65\x66ineWordResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition\"/\n\x19WordFromDefinitionRequest\x12\x12\n\ndefinition\x18\x01 \x01(\t\"R\n\x1aWordFromDefinitionResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition\"\x15\n\x13GenerateWordRequest\"L\n\x14GenerateWordResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition2\xe0\x02\n\x0bWordService\x12\x65\n\nDefineWord\x12).endpoints.word_service.DefineWordRequest\x1a*.endpoints.word_service.DefineWordResponse\"\x00\x12}\n\x12WordFromDefinition\x12\x31.endpoints.word_service.WordFromDefinitionRequest\x1a\x32.endpoints.word_service.WordFromDefinitionResponse\"\x00\x12k\n\x0cGenerateWord\x12+.endpoints.word_service.GenerateWordRequest\x1a,.endpoints.word_service.GenerateWordResponse\"\x00\x62\x06proto3')
 )
 
 
@@ -67,6 +67,13 @@ _WORDDEFINITION = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='probablyExists', full_name='endpoints.word_service.WordDefinition.probablyExists', index=5,
+      number=6, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -80,7 +87,7 @@ _WORDDEFINITION = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=45,
-  serialized_end=145,
+  serialized_end=169,
 )
 
 
@@ -110,8 +117,8 @@ _DEFINEWORDREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=147,
-  serialized_end=180,
+  serialized_start=171,
+  serialized_end=204,
 )
 
 
@@ -141,8 +148,8 @@ _DEFINEWORDRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=182,
-  serialized_end=256,
+  serialized_start=206,
+  serialized_end=280,
 )
 
 
@@ -172,8 +179,8 @@ _WORDFROMDEFINITIONREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=258,
-  serialized_end=305,
+  serialized_start=282,
+  serialized_end=329,
 )
 
 
@@ -203,8 +210,8 @@ _WORDFROMDEFINITIONRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=307,
-  serialized_end=389,
+  serialized_start=331,
+  serialized_end=413,
 )
 
 
@@ -227,8 +234,8 @@ _GENERATEWORDREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=391,
-  serialized_end=412,
+  serialized_start=415,
+  serialized_end=436,
 )
 
 
@@ -258,8 +265,8 @@ _GENERATEWORDRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=414,
-  serialized_end=490,
+  serialized_start=438,
+  serialized_end=514,
 )
 
 _DEFINEWORDRESPONSE.fields_by_name['word'].message_type = _WORDDEFINITION
@@ -331,8 +338,8 @@ _WORDSERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=493,
-  serialized_end=845,
+  serialized_start=517,
+  serialized_end=869,
   methods=[
   _descriptor.MethodDescriptor(
     name='DefineWord',

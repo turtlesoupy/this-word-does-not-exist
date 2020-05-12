@@ -65,6 +65,9 @@ class WordGenerator:
 
         return expanded[0] if expanded else None
 
+    def probably_real_word(self, word):
+        return self.blacklist.contains(word)
+
     def generate_definition(self, word, user_filter=None):
         prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{word}{datasets.SpecialTokens.POS_SEP}"
         expanded, stats = datasets.ParsedDictionaryDefinitionDataset.generate_words(

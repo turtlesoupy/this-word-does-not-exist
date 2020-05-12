@@ -4,6 +4,10 @@ metadata:
   name: website
   namespace: default
 spec:
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
   selector:
     matchLabels:
       run: website
@@ -13,7 +17,7 @@ spec:
         run: website
     spec:
       containers:
-      - image: gcr.io/this-word-does-not-exist/website:v38
+      - image: gcr.io/this-word-does-not-exist/website:v42
         imagePullPolicy: IfNotPresent
         name: website
         ports:

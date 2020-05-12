@@ -18,6 +18,9 @@ function syncToWord(word, permalink, pushHistory) {
   let syllablesEl = document.getElementById("definition-syllables");
   let definitionEl = document.getElementById("definition-definition");
   let exampleEl = document.getElementById("definition-example");
+  let probablyExistsExplanationEl = document.getElementById("definition-word-exists");
+  let noExistsExplanationEl = document.getElementById("definition-word-no-exist");
+  let wordExistsLinkEl = document.getElementById("word-exists-link");
 
   posEl.innerHTML = word.pos;
   if (!posEl.innerHTML.endsWith("]")) {
@@ -27,7 +30,8 @@ function syncToWord(word, permalink, pushHistory) {
   wordEl.innerHTML = word.word;
   definitionEl.innerHTML = word.definition;
   if (word.example) {
-    exampleEl.innerHTML = `"${word.example}"`;
+    let tidiedExample = word.example.replace(/^"|"$/g, '');
+    exampleEl.innerHTML = `"${tidiedExample}"`;
   } else {
     exampleEl.innerHTML = "";
   }
@@ -36,6 +40,15 @@ function syncToWord(word, permalink, pushHistory) {
     syllablesEl.innerHTML = word.syllables.join("<span class='syllable-separator'>&middot;</span>");
   } else {
     syllablesEl.innerHTML = "";
+  }
+
+  if (word.probably_exists) {
+    probablyExistsExplanationEl.style.display = "";
+    noExistsExplanationEl.style.display = "none";
+    wordExistsLinkEl.href = `https://www.google.com/search?q=${encodeURIComponent(word.word)}`;
+  } else {
+    probablyExistsExplanationEl.style.display = "none";
+    noExistsExplanationEl.style.display = "";
   }
 
   if (pushHistory && permalink) {

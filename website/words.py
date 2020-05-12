@@ -15,6 +15,7 @@ class Word:
     topic: Optional[str]
     example: Optional[str]
     syllables: Optional[List[str]]
+    probably_exists: Optional[bool]
 
     @classmethod
     def from_protobuf(cls, proto: wordservice_pb2.WordDefinition):
@@ -29,6 +30,7 @@ class Word:
             topic=None,
             example=example,
             syllables=list(proto.syllables),
+            probably_exists=proto.probablyExists,
         )
 
     @classmethod
@@ -42,6 +44,7 @@ class Word:
                 topic=d["t"] if "t" in d else None,
                 example=d["e"] if "e" in d else None,
                 syllables=d["s"] if "s" in d else None,
+                probably_exists=d["l"] if "l" in d else None,
             )
         else:
             return cls(
@@ -51,6 +54,7 @@ class Word:
                 topic=d["topic"] if "topic" in d else None,
                 example=d["example"] if "example" in d else None,
                 syllables=d["syllables"] if "syllables" in d and len(d["syllables"]) > 0 else None,
+                probably_exists=d["probably_exists"] if "probably_exists" in d else None,
             )
 
     def to_short_dict(self):
@@ -67,6 +71,8 @@ class Word:
             ret["e"] = self.example
         if self.syllables and len(self.syllables) > 1:
             ret["s"] = self.syllables
+        if self.probably_exists:
+            ret["l"] = self.probably_exists
 
         return ret
 
@@ -78,6 +84,7 @@ class Word:
             "topic": self.topic,
             "example": self.example,
             "syllables": self.syllables,
+            "probably_exists": self.probably_exists,
         }
 
 

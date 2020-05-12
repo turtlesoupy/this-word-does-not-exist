@@ -3,6 +3,7 @@ import json
 import jinja2
 import aiohttp_jinja2
 import aiohttp
+import backoff
 from aiohttp import web
 import argparse
 from urllib.parse import quote_plus
@@ -11,6 +12,8 @@ import words
 from word_service.word_service_proto import wordservice_pb2
 from word_service.word_service_proto import wordservice_grpc
 from grpclib.client import Channel
+from grpclib.exceptions import GRPCError
+from grpclib.const import Status
 import logging
 from async_lru import alru_cache
 from title_maker_pro.bad_words import grawlix
@@ -32,6 +35,18 @@ def _dev_handlers():
         fernet_crypto_key=os.environ["FERNET_CRYPTO_KEY"],
         gcloud_api_key=os.environ["GCLOUD_API_KEY"]
     )
+
+
+def _grpc_nonretriable(e: GRPCError):
+    return e.status in (
+        Status.INVALID_ARGUMENT,
+        Status.NOT_FOUND,
+        Status.ALREADY_EXISTS,
+        Status.PERMISSION_DENIED,
+        Status.FAILED_PRECONDITION,
+        Status.UNAUTHENTICATED,
+    )
+
 
 
 class Handlers:
@@ -68,6 +83,7 @@ class Handlers:
         return {
             "word": word, 
             "word_json": json.dumps(word.to_dict()), 
+            "word_exists": bool(word.probably_exists),
             "permalink": self._view_word_permalink(word)
         }
 
@@ -98,6 +114,8 @@ class Handlers:
             return bool(d.get("success"))
 
     @alru_cache(maxsize=65536)
+    @backoff.on_exception(backoff.expo, ConnectionRefusedError, max_time=20)
+    @backoff.on_exception(backoff.expo, GRPCError, max_time=20, giveup=_grpc_nonretriable)
     async def _cached_fetch_word_definition(self, word):
         return await self.word_service.DefineWord(
             wordservice_pb2.DefineWordRequest(word=word),
@@ -118,10 +136,14 @@ class Handlers:
 
         word = grawlix(word)
 
-        if not await self._verify_recaptcha(request.remote, token):
-            raise _json_error(web.HTTPBadRequest, "Baddo")
+        # if not await self._verify_recaptcha(request.remote, token):
+        #     raise _json_error(web.HTTPBadRequest, "Baddo")
 
-        response = await self._cached_fetch_word_definition(word)
+        try:
+            response = await self._cached_fetch_word_definition(word)
+        except Exception:
+            logging.exception("Couldn't fetch word definition")
+            raise
 
         if not response.word or not response.word.word or not response.word.definition:
             raise _json_error(web.HTTPServerError, "Couldn't define")
@@ -153,6 +175,7 @@ def app(handlers=None):
         app, loader=jinja2.FileSystemLoader("./website/templates"), filters={
             "quote_plus": quote_plus,
             "escape_double": lambda x: x.replace('"', r'\"'),
+            "strip_quotes": lambda x: x.strip('"'),
         },
     )
     return app
