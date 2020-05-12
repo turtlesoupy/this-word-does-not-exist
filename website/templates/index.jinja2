@@ -20,9 +20,15 @@
   <meta name="twitter:site" content="@robo_define">
   <meta name="twitter:creator" content="@turtlesoupy">
   <meta name="twitter:image" content="https://www.thisworddoesnotexist.com/static/twitter_card_big.png">
-  <meta name="og:description" content="1. {{word.definition | remove_period}}. 2. a word invented by a machine learning algorithm.">
   <meta property="og:url" content="https://www.thisworddoesnotexist.com">
-  <meta property="og:title" content="{{word.word | escape_double}}: this word does not exist">
+  {% if word_exists is sameas true %}
+    <meta property="og:title" content="{{word.word | escape_double}}: this word does not exist">
+    <meta name="og:description" content="1. {{word.definition | remove_period}}. 2. a word invented by a machine learning algorithm.">
+  {% else %}
+    <meta property="og:title" content="{{word.word | escape_double}}: this word probably exists">
+    <meta name="og:description" content="1. {{word.definition | remove_period}}. 2. an alternative defined by a machine learning algorithm.">
+  {% endif %}
+
 
   <link rel="stylesheet" href="/static/bundle.css">
   <script async type="text/javascript" src="/static/bundle.js"></script>
