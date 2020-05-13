@@ -42,6 +42,7 @@ def _dev_handlers():
 def _grpc_nonretriable(e: GRPCError):
     return e.status in (
         Status.INVALID_ARGUMENT,
+        Status.UNKNOWN,
         Status.NOT_FOUND,
         Status.ALREADY_EXISTS,
         Status.PERMISSION_DENIED,
@@ -67,11 +68,11 @@ class Handlers:
         self.word_index = word_index
         self.permalink_hmac_key = permalink_hmac_key.encode("utf-8")
         self.recaptcha_server_token = recaptcha_server_token
-        self.captcha_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(captcha_timeout))
+        self.captcha_timeout = captcha_timeout
         self.gcloud_api_key = gcloud_api_key
 
     async def on_startup(self, app):
-        pass
+        self.captcha_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(self.captcha_timeout))
 
     async def on_cleanup(self, app):
         await self.captcha_session.close()

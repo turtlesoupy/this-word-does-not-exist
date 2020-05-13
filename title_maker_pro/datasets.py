@@ -257,6 +257,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         num_returned: int = 0
         num_example_pos_match_failed: int = 0
         num_example_missing_title: int = 0
+        num_short_definitions: int = 0
         wall_time: float = 0.0
         wall_stanza_time: float = 0.0
 
@@ -272,6 +273,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                         ("seen_filtered", self.num_seen_filtered),
                         ("proper_noun_filtered", self.num_proper_noun_filtered),
                         ("example_missing", self.num_example_missing),
+                        ("short_definitions", self.num_short_definitions),
                         ("example_missing_title", self.num_example_missing_title),
                         ("example_pos_match_failed", self.num_example_pos_match_failed),
                         ("user_filtered", self.num_user_filtered),
@@ -368,6 +370,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         user_filter=None,
         filter_proper_nouns=False,
         use_custom_generate=True,
+        min_definition_words=3,
     ):
         start = time.time()
         viable_candidates = []
@@ -467,34 +470,39 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     stats.num_example_missing += 1
                     viable_candidates.append(GeneratedWordCandidate(0.0, generated_word))
                     continue
-                else:
-                    t_rstrip = title.strip().lower().rstrip("s")
-                    l_example = example.lower()
-                    try:
-                        start_title_idx = l_example.index(t_rstrip)
-                        if pos and example_match_pos_pipeline:
-                            pos_removed = re.sub(r"\[.*\]", "", pos).strip()
-                            pos_removed = re.sub(r"plural", "", pos_removed).strip()
-                            start_stanza = time.time()
-                            pos_guess = cls.approx_pos(
-                                example_match_pos_pipeline, l_example, start_title_idx, len(t_rstrip)
-                            )
-                            stats.wall_stanza_time += time.time() - start_stanza
 
-                            if pos_removed not in oed_to_upos:
-                                logger.warn(f"No UPOS mapping for {pos_removed} - {title} in '{example}'': {pos_guess}")
-                                stats.num_example_pos_match_failed += 1
-                                viable_candidates.append(GeneratedWordCandidate(0.9, generated_word))
-                                continue
-                            elif pos_guess not in oed_to_upos[pos_removed]:
-                                stats.num_example_pos_match_failed += 1
-                                viable_candidates.append(GeneratedWordCandidate(1.0, generated_word))
-                                continue
+                if len(definition.split()) < min_definition_words:
+                    stats.num_short_definitions += 1
+                    viable_candidates.append(GeneratedWordCandidate(0.2, generated_word))
+                    continue
 
-                    except ValueError:
-                        stats.num_example_missing_title += 1
-                        viable_candidates.append(GeneratedWordCandidate(0.5, generated_word))
-                        continue
+                t_rstrip = title.strip().lower().rstrip("s")
+                l_example = example.lower()
+                try:
+                    start_title_idx = l_example.index(t_rstrip)
+                    if pos and example_match_pos_pipeline:
+                        pos_removed = re.sub(r"\[.*\]", "", pos).strip()
+                        pos_removed = re.sub(r"plural", "", pos_removed).strip()
+                        start_stanza = time.time()
+                        pos_guess = cls.approx_pos(
+                            example_match_pos_pipeline, l_example, start_title_idx, len(t_rstrip)
+                        )
+                        stats.wall_stanza_time += time.time() - start_stanza
+
+                        if pos_removed not in oed_to_upos:
+                            logger.warn(f"No UPOS mapping for {pos_removed} - {title} in '{example}'': {pos_guess}")
+                            stats.num_example_pos_match_failed += 1
+                            viable_candidates.append(GeneratedWordCandidate(0.9, generated_word))
+                            continue
+                        elif pos_guess not in oed_to_upos[pos_removed]:
+                            stats.num_example_pos_match_failed += 1
+                            viable_candidates.append(GeneratedWordCandidate(1.0, generated_word))
+                            continue
+
+                except ValueError:
+                    stats.num_example_missing_title += 1
+                    viable_candidates.append(GeneratedWordCandidate(0.5, generated_word))
+                    continue
 
                 if user_filter and not user_filter(generated_word):
                     stats.num_user_filtered += 1

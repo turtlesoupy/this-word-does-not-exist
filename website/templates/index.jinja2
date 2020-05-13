@@ -13,13 +13,21 @@
   {% else %}
   <title>This Word Does Not Exist</title>
   {% endif %}
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="theme-color" content="#ffffff">
+
   <meta name="description" content="This Word Does Not Exist uses an artificial intelligence model named GPT-2 to invent new words in the English language.">
   <meta name="author" content="Thomas Dimson">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@robo_define">
   <meta name="twitter:creator" content="@turtlesoupy">
-  <meta name="twitter:image" content="https://www.thisworddoesnotexist.com/static/twitter_card_big_title.png">
+  <meta name="twitter:image" content="https://www.thisworddoesnotexist.com/static/twitter_card_biggest_title.png">
   <meta property="og:url" content="https://www.thisworddoesnotexist.com">
   {% if word_exists is sameas true %}
     <meta property="og:title" content="{{word.word | escape_double}}: this word probably exists">
@@ -28,7 +36,6 @@
     <meta property="og:title" content="{{word.word | escape_double}}: this word does not exist">
     <meta name="og:description" content="1. {{word.definition | remove_period}}. 2. a word invented by a machine learning algorithm.">
   {% endif %}
-
 
   <link rel="stylesheet" href="/static/bundle.css">
   <script async type="text/javascript" src="/static/bundle.js"></script>

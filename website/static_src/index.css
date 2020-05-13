@@ -199,7 +199,7 @@ a.darken:hover img {
     margin-top: 4px;
 }
 
-@media only screen and (orientation : portrait)  {
+@media only screen and (orientation : portrait) and (max-width: 600px)  {
     .site-wrapper {
         width: 95%;
     }

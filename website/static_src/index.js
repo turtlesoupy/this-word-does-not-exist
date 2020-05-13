@@ -51,6 +51,12 @@ function syncToWord(word, permalink, pushHistory) {
     noExistsExplanationEl.style.display = "";
   }
 
+  if (word.probably_exists) {
+    document.title = `${word.word} - This Word Probably Exists`;
+  } else {
+    document.title = `${word.word} - This Word Does Not Exist`;
+  }
+
   if (pushHistory && permalink) {
     history.pushState(
       {"word": word, "permalink": permalink}, 
