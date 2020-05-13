@@ -22,8 +22,8 @@ Python deps are in https://github.com/turtlesoupy/this-word-does-not-exist/blob/
 
 Pre-trained model files:
 - Blacklist: https://storage.googleapis.com/this-word-does-not-exist-models/blacklist.pickle.gz
-- Forward Model (word -> definition): https://storage.googleapis.com/this-word-does-not-exist-models/blacklist.pickle.gz
-- Inverse model (definition -> word): https://storage.googleapis.com/this-word-does-not-exist-models/blacklist.pickle.gz
+- Forward Model (word -> definition): https://storage.googleapis.com/this-word-does-not-exist-models/forward-dictionary-model-v1.tar.gz
+- Inverse model (definition -> word): https://storage.googleapis.com/this-word-does-not-exist-models/inverse-dictionary-model-v1.tar.gz
 
 To use them:
 ```
