@@ -35,9 +35,15 @@ word_generator = WordGenerator(
   blacklist_path="<blacklist>",
   quantize=False,
 )
-print(word_generator.generate_word()) # a word from scratch
-print(word_generator.generate_definition("glooberyblipboop")) # definition for a word you make up
-print(word_generator.generate_word_from_definition("a word that does not exist")) # new word made up from a definition
+
+# a word from scratch:
+print(word_generator.generate_word())
+
+# definition for a word you make up
+print(word_generator.generate_definition("glooberyblipboop")) 
+
+# new word made up from a definition
+print(word_generator.generate_word_from_definition("a word that does not exist")) 
 ```
 
 
