@@ -681,6 +681,8 @@ class InverseParsedDictionaryDefinitionDataset(Dataset):
                     example=example and example.strip(),
                     pos=pos and pos.strip(),
                     topic=topic and topic.strip(),
+                    decoded=decoded,
+                    decoded_tokens=sentence_tokens,
                 )
 
                 if blacklist and blacklist.contains(title):
