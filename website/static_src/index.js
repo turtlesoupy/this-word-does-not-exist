@@ -6,10 +6,14 @@ function wordURL(word, permalink, relative) {
 }
 
 
-function syncTweetURL(url) {
+function syncLinkURLs(url, word) {
   let tweetEl = document.getElementById("tweet-a");
+  let linkButtonEl = document.getElementById("link-button-a");
   if (tweetEl) {
-    tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`;
+    tweetEl.href = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(word.word)}`;
+  }
+  if (linkButtonEl) {
+    linkButtonEl.href = url;
   }
 }
 function syncToWord(word, permalink, pushHistory) {
@@ -58,12 +62,15 @@ function syncToWord(word, permalink, pushHistory) {
   }
 
   if (pushHistory && permalink) {
+    let relativeURL = wordURL(word.word, permalink, true);
+    let fullURL = wordURL(word.word, permalink, false);
     history.pushState(
       {"word": word, "permalink": permalink}, 
       "",
-      wordURL(word.word, permalink, true)
+      relativeURL,
     );
-    syncTweetURL(wordURL(word.word, permalink, false));
+
+    syncLinkURLs(fullURL, word);
   }
 }
 
@@ -93,15 +100,6 @@ window.onload = () => {
   var errorText = "something went wrong, try again?"
 
   writeButton.classList.remove(["disabled"]);
-
-  // Swap main index page for permalink
-  if (history && history.state && history.state.word && history.state.permalink) {
-    history.replaceState(
-      history.state,
-      "",
-      wordURL(history.state.word.word, history.state.permalink, true)
-    );
-  }
 
   let state = {};
 

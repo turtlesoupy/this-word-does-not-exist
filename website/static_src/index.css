@@ -25,6 +25,10 @@ a.disabled, a.disabled:visited, a.disabled:hover {
     color: rgba(255, 255, 255, 0.5);
 }
 
+#link-button {
+    padding-bottom: 3px;
+}
+
 .site-wrapper {
     width: 550px;
     margin: auto;

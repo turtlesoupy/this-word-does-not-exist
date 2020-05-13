@@ -71,14 +71,21 @@
             </div>
 
             <div class="intro-right"> 
-                <a id="tweet-a" class="darken" href="https://twitter.com/intent/tweet?url={{full_url|quote_plus}}">
+                <a id="link-button-a" href="{{full_url}}" class="darken">
+                    <img id="link-button" 
+                        class="darken"
+                        src="/static/linkButton.png" height="12" width="12" 
+                        srcset="/static/linkButton.png, /static/linkButton@2x.png 2x"
+                        alt="Permanent link to this page">
+                </a>
+
+                <a id="tweet-a" class="darken" href="https://twitter.com/intent/tweet?url={{full_url|quote_plus}}&text={{word.word|quote_plus}}">
                     <img 
                         class="intro-tweet-button" 
                         srcset="/static/tweet_button.png, /static/tweet_button@2x.png 2x"
                         src="/static/tweet_button@2x.png" 
                         height="19"
                         alt="Tweet Button">
-                        <div class="overlay"></div>
                 </a>
             </div>
         </div>
@@ -118,7 +125,7 @@
                             </span>
                             <br />
                             <a href="/">Generate another word </a> / 
-                            <a id="write-button" class="disabled" href="/">Write your own </a>
+                            <a id="write-button" class="disabled" href="/">Write your own </a> 
                         </div>
                     </li>
                 </ol>
