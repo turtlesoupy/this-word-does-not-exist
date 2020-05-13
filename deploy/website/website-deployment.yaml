@@ -17,7 +17,7 @@ spec:
         run: website
     spec:
       containers:
-      - image: gcr.io/this-word-does-not-exist/website:v56
+      - image: gcr.io/this-word-does-not-exist/website:v60
         imagePullPolicy: IfNotPresent
         name: website
         ports:
