@@ -6,11 +6,12 @@ people to train a variant of GPT-2 that makes
 up words, definitions and examples from scratch. 
 
 For example
-```
-incromulentness (noun)
-lack of sincerity or candor
-"incromulentness in the manner of speech"
-```
+
+> **incromulentness** (noun)
+>
+> lack of sincerity or candor
+>
+> *"incromulentness in the manner of speech"*
 
 Check out https://www.thisworddoesnotexist.com as a demo 
 
