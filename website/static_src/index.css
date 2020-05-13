@@ -55,7 +55,6 @@ a.disabled, a.disabled:visited, a.disabled:hover {
 
 a.darken {
     display: inline-block;
-    background: black;
     padding: 0;
 }
 
