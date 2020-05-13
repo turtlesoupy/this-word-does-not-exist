@@ -20,7 +20,9 @@ Check out https://twitter.com/robo_define for a twitter bot demo
 ## Training a model
 For raw thoughts, take a look at some of the notebooks in https://github.com/turtlesoupy/this-word-does-not-exist/tree/master/notebooks
 
-To train, you'll need to find a dictionary -- there is code to extract from Apple dictionaries in https://github.com/turtlesoupy/this-word-does-not-exist/blob/master/title_maker_pro/dictionary_definition.py (e.g. `/System/Library/Assets/com_apple_MobileAsset_DictionaryServices_dictionaryOSX/`). There is code to parse urban dictionary in https://github.com/turtlesoupy/this-word-does-not-exist/blob/master/title_maker_pro/urban_dictionary_scraper.py
+To train, you'll need to find a dictionary -- there is code to extract from 
+- Apple dictionaries in https://github.com/turtlesoupy/this-word-does-not-exist/blob/master/title_maker_pro/dictionary_definition.py (e.g. `/System/Library/Assets/com_apple_MobileAsset_DictionaryServices_dictionaryOSX/`). 
+- Urban dictionary in https://github.com/turtlesoupy/this-word-does-not-exist/blob/master/title_maker_pro/urban_dictionary_scraper.py
 
 After extracting a dictionarty you can use the master training script: https://github.com/turtlesoupy/this-word-does-not-exist/blob/master/title_maker_pro/train.py. A sample recent run is https://github.com/turtlesoupy/this-word-does-not-exist/blob/master/scripts/sample_run_parsed_dictionary.sh
 
