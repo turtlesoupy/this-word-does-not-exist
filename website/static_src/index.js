@@ -1,4 +1,5 @@
 import 'whatwg-fetch'
+const copy = require('clipboard-copy');
 
 function wordURL(word, permalink, relative) {
   const base = relative ? "" : "https://www.thisworddoesnotexist.com";
@@ -96,7 +97,9 @@ window.onload = () => {
   let wordEntryForm = document.getElementById("word-entry-form");
   let cancelButton = document.getElementById("word-entry-cancel")
   let hintTextValue = document.getElementById("hint-text-value");
+  let linkButtonEl = document.getElementById("link-button-a");
   let defaultHintText = hintTextValue.innerHTML;
+  let snackEl = document.getElementById("snackbar");
   var errorText = "something went wrong, try again?"
 
   writeButton.classList.remove(["disabled"]);
@@ -125,7 +128,23 @@ window.onload = () => {
       definitionEl.style.display = "";
       writeYourOwnEl.style.display = "none";
       wordEntry.blur();
+    } else if (event.target == linkButtonEl) {
+      event.preventDefault(); 
+      let showToast = () => {
+        snackEl.style.display = "";
+        snackEl.className = "show";
+        snackEl.innerHTML = "Copied!";
+        setTimeout(function(){ snackEl.className = snackEl.className.replace("show", ""); }, 3000);
+      };
+
+      let url = linkButtonEl.href;
+      if (copy(url)) {
+        showToast();
+      } else {
+        window.location = url;
+      }
     }
+
   }, false);
 
   let doSubmit = () => {

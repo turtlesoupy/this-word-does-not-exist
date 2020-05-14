@@ -20,6 +20,7 @@
     "webpack-cli": "^3.3.11"
   },
   "dependencies": {
+    "clipboard-copy": "^3.1.0",
     "css-loader": "^3.5.3",
     "lodash": "^4.17.15",
     "optimize-css-assets-webpack-plugin": "^5.0.3",

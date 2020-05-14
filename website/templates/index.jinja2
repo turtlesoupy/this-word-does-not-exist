@@ -37,8 +37,8 @@
     <meta name="og:description" content="1. {{word.definition | remove_period}}. 2. a word invented by a machine learning algorithm.">
   {% endif %}
 
-  <link rel="stylesheet" href="/static/bundle.css">
-  <script async type="text/javascript" src="/static/bundle.js"></script>
+  <link rel="stylesheet" href="/static/bundle.css?v=1">
+  <script async type="text/javascript" src="/static/bundle.js?v=1"></script>
   <script async type="text/javascript" src="https://platform.twitter.com/widgets.js"></script>
   <script>
       {% if word_json %}
@@ -117,7 +117,7 @@
                             </span>
                             <br />
                             <br />
-                            <a id="link-button-a" href="{{full_url}}" class="darken">
+                            <a id="link-button-a" href="{{full_url}}">
                                 Link
                             </a>
                             /
@@ -177,6 +177,7 @@
                 Words are not reviewed and may reflect bias in the training set
             </div>
         </div>
+        <div id="snackbar" style="display: none;"><div>
     </div>
 </body>
 </html>
