@@ -35,7 +35,8 @@ def _dev_handlers():
         word_index=words.WordIndex.load("./website/data/words.json.gz"),
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
         permalink_hmac_key=os.environ["PERMALINK_HMAC_KEY"],
-        gcloud_api_key=os.environ["GCLOUD_API_KEY"]
+        gcloud_api_key=os.environ["GCLOUD_API_KEY"],
+        firebase_api_key=os.environ["FIREBASE_API_KEY"],
     )
 
 
@@ -61,6 +62,7 @@ class Handlers:
         recaptcha_server_token,
         permalink_hmac_key,
         gcloud_api_key,
+        firebase_api_key,
         captcha_timeout=10,
     ):
         self.word_service_channel = Channel(word_service_address, word_service_port)
@@ -70,12 +72,15 @@ class Handlers:
         self.recaptcha_server_token = recaptcha_server_token
         self.captcha_timeout = captcha_timeout
         self.gcloud_api_key = gcloud_api_key
+        self.firebase_api_key = firebase_api_key
 
     async def on_startup(self, app):
         self.captcha_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(self.captcha_timeout))
+        self.firebase_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(self.captcha_timeout))
 
     async def on_cleanup(self, app):
         await self.captcha_session.close()
+        await self.firebase_session.close()
         self.word_service_channel.close()
 
     def _view_word_permalink(self, view_word):
@@ -102,18 +107,46 @@ class Handlers:
     async def index(self, request):
         return self._index_response(self.word_index.random())
 
-    @aiohttp_jinja2.template("index.jinja2")
-    async def word(self, request):
+    def _word_from_url(self, request):
         _ = request.match_info["word"]
         encrypted = request.match_info["encrypt"]
         payload, signature = encrypted.split(".")
         h = hmac.new(self.permalink_hmac_key, payload.encode("utf-8"), digestmod=hashlib.sha256)
         if not hmac.compare_digest(h.digest(), base64.urlsafe_b64decode(signature)):
             raise _json_error(web.HTTPBadRequest, "Bad digest")
-
+        
         word_dict = json.loads(base64.urlsafe_b64decode(payload).decode("utf-8"))
         w = words.Word.from_dict(word_dict)
+        return w
+
+    @aiohttp_jinja2.template("index.jinja2")
+    async def word(self, request):
+        w = self._word_from_url(request)
         return self._index_response(w, word_in_title=True)
+
+    async def shorten_word_url(self, request):
+        w = self._word_from_url(request)
+        permalink = self._view_word_permalink(w)
+        full_url = self._full_permalink_url(w, permalink)
+        async with self.firebase_session.post(
+            url=f"https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key={self.firebase_api_key}",
+            json={
+                # "longDynamicLink": f"https://l.thisworddoesnotexist.com/?link={full_url}", -- wait for DNS
+                "longDynamicLink": f"https://thisworddoesnotexist.page.link/?link={full_url}",
+                "suffix": {
+                    "option": "SHORT",
+                }
+            }
+        ) as response:
+            d = await response.json()
+            if "shortLink" not in d:
+                logger.error(f"No shortlink from firebase: {d}")
+                raise _json_error(web.HTTPException, "Unexpected response in url shortener")
+
+            return web.Response(
+                text=json.dumps({"url": d["shortLink"]}),
+                content_type="application/json",
+            )
 
     async def _verify_recaptcha(self, ip, token):
         async with self.captcha_session.post(
@@ -169,7 +202,7 @@ class Handlers:
         )
 
     async def favicon(self, request):
-        return web.FileResponse("./website/static/favicon.ico")
+        return web.FileResponse("./website/static/favicons/favicon.ico")
 
 
 def app(handlers=None):
@@ -181,6 +214,7 @@ def app(handlers=None):
         [
             web.get("/", handlers.index),
             web.get("/w/{word}/{encrypt}", handlers.word),
+            web.get("/shorten_word_url/{word}/{encrypt}", handlers.shorten_word_url),
             web.get("/define_word", handlers.define_word),
             web.get("/favicon.ico", handlers.favicon),
             web.static("/static", "./website/static"),
@@ -217,6 +251,7 @@ if __name__ == "__main__":
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
         permalink_hmac_key=os.environ["PERMALINK_HMAC_KEY"],
         gcloud_api_key=os.environ["GCLOUD_API_KEY"],
+        firebase_api_key=os.environ["FIREBASE_API_KEY"],
     )
 
     web.run_app(app(handlers), path=args.path)

@@ -98,6 +98,7 @@ window.onload = () => {
   let cancelButton = document.getElementById("word-entry-cancel")
   let hintTextValue = document.getElementById("hint-text-value");
   let linkButtonEl = document.getElementById("link-button-a");
+  let linkButtonLoadingEl = document.getElementById("link-button-loading");
   let defaultHintText = hintTextValue.innerHTML;
   let snackEl = document.getElementById("snackbar");
   var errorText = "something went wrong, try again?"
@@ -130,18 +131,49 @@ window.onload = () => {
       wordEntry.blur();
     } else if (event.target == linkButtonEl) {
       event.preventDefault(); 
+
       let showToast = () => {
+        linkButtonEl.style.display = "";
+        linkButtonLoadingEl.style.display = "none";
+
         snackEl.style.display = "";
         snackEl.className = "show";
         snackEl.innerHTML = "Copied!";
         setTimeout(function(){ snackEl.className = snackEl.className.replace("show", ""); }, 3000);
       };
 
+      let tryCopyOrRedirect = (url) => {
+        if (copy(url)) {
+          showToast();
+        } else {
+          window.location = url;
+        }
+      };
+
       let url = linkButtonEl.href;
-      if (copy(url)) {
-        showToast();
+      linkButtonEl.style.display = "none";
+      linkButtonLoadingEl.style.display = "";
+      if (history.state && history.state.word && history.state.permalink) {
+        const controller = new AbortController();
+        const signal = controller.signal;
+        state.query_controller = controller;
+        setTimeout(() => controller.abort(), 10000);
+        window.fetch(`/shorten_word_url/${history.state.word.word}/${history.state.permalink}`, {signal})
+          .then(res => res.json())
+          .then(json => {
+            if (!json.url) {
+              console.error("No url returned, copying original url!")
+              tryCopyOrRedirect(url);
+            } else {
+              tryCopyOrRedirect(json.url);
+            }
+          })
+          .catch((error) => {
+            console.log(error);
+            tryCopyOrRedirect(url);
+          });
       } else {
-        window.location = url;
+        tryCopyOrRedirect(url);
       }
     }
 

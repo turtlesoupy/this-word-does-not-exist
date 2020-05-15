@@ -37,15 +37,16 @@
     <meta name="og:description" content="1. {{word.definition | remove_period}}. 2. a word invented by a machine learning algorithm.">
   {% endif %}
 
-  <link rel="stylesheet" href="/static/bundle.css?v=1">
-  <script async type="text/javascript" src="/static/bundle.js?v=1"></script>
+  <link rel="stylesheet" href="/static/bundle.css?v=2">
+  <script async type="text/javascript" src="/static/bundle.js?v=2"></script>
   <script async type="text/javascript" src="https://platform.twitter.com/widgets.js"></script>
   <script>
       {% if word_json %}
       if (history !== undefined) {
-        history.replaceState({"word": {{word_json | tojson}}, "permalink": "{{permalink | safe}}"}, "");
+        history.replaceState({"word": JSON.parse({{word_json | tojson}}), "permalink": "{{permalink | safe}}"}, "");
       }
       {% endif %}
+      console.log(history.state);
 
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
@@ -120,6 +121,8 @@
                             <a id="link-button-a" href="{{full_url}}">
                                 Link
                             </a>
+                            <span id="link-button-loading" style="display: none;">Copying</span>
+
                             /
                             <a href="/">Generate another word </a> / 
                             <a id="write-button" class="disabled" href="/">Write your own </a> 
