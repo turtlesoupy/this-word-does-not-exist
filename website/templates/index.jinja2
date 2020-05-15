@@ -21,7 +21,7 @@
   <meta name="msapplication-TileColor" content="#da532c">
   <meta name="theme-color" content="#ffffff">
 
-  <meta name="description" content="This Word Does Not Exist uses an artificial intelligence model named GPT-2 to invent new words in the English language.">
+  <meta name="description" content="This Word Does Not Exist uses an artificial intelligence model named GPT-2 to invent new English words.">
   <meta name="author" content="Thomas Dimson">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="twitter:card" content="summary_large_image">
@@ -29,7 +29,10 @@
   <meta name="twitter:creator" content="@turtlesoupy">
   <meta name="twitter:image" content="https://www.thisworddoesnotexist.com/static/twitter_card_biggest_title.png">
   <meta property="og:url" content="https://www.thisworddoesnotexist.com">
-  {% if word_exists is sameas true %}
+  {% if word_in_title is sameas false %}
+    <meta property="og:title" content="This Word Does Not Exist">
+    <meta name="og:description" content="We use artificial intelligence to make up new English words.">
+  {% elif word_exists is sameas true %}
     <meta property="og:title" content="{{word.word | escape_double}}: this word probably exists">
     <meta name="og:description" content="1. {{word.definition | remove_period}}. 2. an alternative defined by a machine learning algorithm.">
   {% else %}
