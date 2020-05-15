@@ -13,6 +13,7 @@ import stanza
 import time
 from collections import Counter
 from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
 from typing import NamedTuple, List, Optional
 from io import StringIO
@@ -81,6 +82,10 @@ class Blacklist:
             or (recursive and all(self.contains(e, recursive=False) for e in word.split()))
             or (recursive and all(self.contains(e, recursive=False) for e in word.split("-")))
         )
+
+    def collapse_hyphens(self):
+        self.blacklist_set |= {"".join(e.split()) for e in self.blacklist_set}
+        self.blacklist_set |= {"".join(e.split("-")) for e in self.blacklist_set}
 
     @classmethod
     def load(cls, path):
@@ -389,6 +394,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         split_re = cls._split_re()
         seen_titles = set()
         stats = cls.GenerationStats()
+        t = tqdm(total=num)
         while len(ret) < num and num_iteration < max_iterations:
             num_iteration += 1
             stats.num_iterations += 1
@@ -428,6 +434,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
             for i in range(generated.size()[0]):
                 if len(ret) >= num:
                     break
+                viable_candidates = viable_candidates[:1000]
 
                 stats.num_items_considered += 1
                 sentence_tokens = generated[i, :].tolist()
@@ -508,6 +515,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
                     stats.num_user_filtered += 1
                     continue
                 else:
+                    t.update()
                     ret.append(generated_word)
                     seen_titles.add(generated_word.word.lower())
 

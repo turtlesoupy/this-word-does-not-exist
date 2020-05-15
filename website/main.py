@@ -32,7 +32,7 @@ def _dev_handlers():
     return Handlers(
         word_service_address="localhost",
         word_service_port=8000,
-        word_index=words.WordIndex.load("./website/data/words.json"),
+        word_index=words.WordIndex.load("./website/data/words.json.gz"),
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
         permalink_hmac_key=os.environ["PERMALINK_HMAC_KEY"],
         gcloud_api_key=os.environ["GCLOUD_API_KEY"]

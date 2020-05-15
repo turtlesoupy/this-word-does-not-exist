@@ -1,5 +1,6 @@
 import json
 import random
+import gzip
 
 from dataclasses import dataclass
 from typing import Optional, List
@@ -95,8 +96,12 @@ class WordIndex:
 
     @classmethod
     def load(cls, path):
-        with open(path, "r") as f:
-            words = [Word.from_dict(e) for e in json.load(f)]
+        if path.endswith(".gz"):
+            with gzip.GzipFile(path, "r") as f:
+                words = [Word.from_dict(e) for e in json.load(f)]
+        else:
+            with open(path, "r") as f:
+                words = [Word.from_dict(e) for e in json.load(f)]
         return cls(words)
 
     def dump(self, path):
