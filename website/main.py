@@ -131,8 +131,7 @@ class Handlers:
         async with self.firebase_session.post(
             url=f"https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key={self.firebase_api_key}",
             json={
-                # "longDynamicLink": f"https://l.thisworddoesnotexist.com/?link={full_url}", -- wait for DNS
-                "longDynamicLink": f"https://thisworddoesnotexist.page.link/?link={full_url}",
+                "longDynamicLink": f"https://l.thisworddoesnotexist.com/?link={full_url}",
                 "suffix": {
                     "option": "SHORT",
                 }
