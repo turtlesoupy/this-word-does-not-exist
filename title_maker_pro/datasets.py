@@ -894,6 +894,162 @@ class BinaryDictionaryDefinitionDataset(Dataset):
 
 
 class UrbanDictionaryDataset(Dataset):
+    def _split_re(self):
+        split_re_pat = (
+            f"^{re.escape(SpecialTokens.BOS_TOKEN)}(?P<title>.+?)"
+            f"{re.escape(SpecialTokens.DEFINITION_SEP)}(?P<definition>.+?)"
+            f"{re.escape(SpecialTokens.EXAMPLE_SEP)}(?P<example>.+?)"
+            f"{re.escape(SpecialTokens.EOS_TOKEN)}"
+        )
+        split_re = re.compile(split_re_pat, flags=re.MULTILINE | re.DOTALL)
+        return split_re
+
+    @classmethod
+    def generate_words(
+        cls,
+        tokenizer,
+        model,
+        prefix=SpecialTokens.BOS_TOKEN,
+        num=100,
+        max_iterations=10,
+        generation_args={},
+        blacklist=None,
+        example_title_match=True,
+        example_match_pos_pipeline=None,
+        dedupe_titles=True,
+        user_filter=None,
+        filter_proper_nouns=False,
+        use_custom_generate=True,
+        min_definition_words=3,
+    ):
+        start = time.time()
+        viable_candidates = []
+        ret = []
+        num_iteration = 0
+        if isinstance(prefix, str):
+            input = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
+        else:
+            input = torch.tensor([prefix], dtype=torch.long).to(model.device)
+
+        pos_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.POS_SEP))
+        example_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.EXAMPLE_SEP))
+        topic_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.TOPIC_SEP))
+        definition_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.DEFINITION_SEP))
+
+        split_re = cls._split_re()
+        seen_titles = set()
+        stats = cls.GenerationStats()
+        t = tqdm(total=num)
+        while len(ret) < num and num_iteration < max_iterations:
+            num_iteration += 1
+            stats.num_iterations += 1
+            if not use_custom_generate:
+                generated = model.generate(
+                    input,
+                    pad_token_id=tokenizer.pad_token_id,
+                    bos_token_id=tokenizer.bos_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                    **generation_args,
+                )
+            else:
+
+                def partial_generation_transform(input_ids, tokens_to_add):
+                    for i in range(tokens_to_add.size()[0]):
+                        if blacklist and tokens_to_add[i] in (pos_sep_id, topic_sep_id, definition_sep_id):
+                            word = tokenizer.decode(input_ids[i, :][1:])
+                            if blacklist.contains(word):
+                                tokens_to_add[i] = tokenizer.eos_token_id
+                        elif tokens_to_add[i] == tokenizer.eos_token_id:
+                            example_token_idxs = input_ids[i, :] == example_sep_id
+                            if example_token_idxs.max() == 0:
+                                tokens_to_add[i] = example_sep_id
+
+                    return tokens_to_add
+
+                generated = custom_modeling_utils.custom_generate(
+                    model,
+                    input,
+                    pad_token_id=tokenizer.pad_token_id,
+                    bos_token_id=tokenizer.bos_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                    partial_generation_transform=partial_generation_transform,
+                    **generation_args,
+                )
+
+            for i in range(generated.size()[0]):
+                if len(ret) >= num:
+                    break
+                viable_candidates = viable_candidates[:1000]
+
+                stats.num_items_considered += 1
+                sentence_tokens = generated[i, :].tolist()
+                decoded = tokenizer.decode(sentence_tokens)
+
+                m = split_re.match(decoded)
+                if not m:
+                    stats.num_failed_match += 1
+                    continue
+
+                title = m.group("title")
+                definition = m.group("definition")
+                topic = m.group("topic")
+                pos = m.group("pos")
+                example = m.group("example")
+
+                generated_word = GeneratedWord(
+                    word=title and title.strip(),
+                    definition=definition and definition.strip(),
+                    example=example and example.strip(),
+                    pos=pos and pos.strip(),
+                    topic=topic and topic.strip(),
+                    decoded=decoded,
+                    decoded_tokens=sentence_tokens,
+                )
+
+                if blacklist and blacklist.contains(title):
+                    stats.num_blacklist_filtered += 1
+                    continue
+
+                if dedupe_titles and title.strip().lower() in seen_titles:
+                    stats.num_seen_filtered += 1
+                    continue
+
+                if filter_proper_nouns and title.strip()[:1].isupper():
+                    stats.num_proper_noun_filtered += 1
+                    continue
+
+                if not example or not example.strip():
+                    stats.num_example_missing += 1
+                    viable_candidates.append(GeneratedWordCandidate(0.0, generated_word))
+                    continue
+
+                if len(definition.split()) < min_definition_words:
+                    stats.num_short_definitions += 1
+                    viable_candidates.append(GeneratedWordCandidate(0.2, generated_word))
+                    continue
+
+                t_rstrip = title.strip().lower().rstrip("s")
+                l_example = example.lower()
+                try:
+                    l_example.index(t_rstrip)
+                except ValueError:
+                    stats.num_example_missing_title += 1
+                    viable_candidates.append(GeneratedWordCandidate(0.5, generated_word))
+                    continue
+
+                if user_filter and not user_filter(generated_word):
+                    stats.num_user_filtered += 1
+                    continue
+                else:
+                    t.update()
+                    ret.append(generated_word)
+                    seen_titles.add(generated_word.word.lower())
+
+        stats.num_returned = len(ret)
+        stats.viable_candidates = viable_candidates
+        stats.wall_time = time.time() - start
+        return ret[:num], stats
+
     def _make_examples(self, tokenizer, word):
         examples = []
 

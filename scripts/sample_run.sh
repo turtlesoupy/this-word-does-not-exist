@@ -1,4 +1,7 @@
 #!/bin/bash
+
+export PYTHONPATH=.: 
+
 python train.py \
  --summary_comment=cleaned_words_all_def_min_upvotes_20_max_len_40_min_len_4_no_upper_randomized__urban_dictionary_cleaned_all_def_lr_0_00005_tw1 \
  --output_dir=models/urban_dictionary_cleaned_all_def_lr_0_00005_tw1 \

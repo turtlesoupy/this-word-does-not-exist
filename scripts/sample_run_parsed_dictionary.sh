@@ -2,6 +2,8 @@
 PYTHON_PATH=/home/tdimson/anaconda3/envs/company_makeup/bin/python
 LIBRARY_PATH=/home/tdimson/projects/company-makeup/title_maker_pro
 
+export PYTHONPATH=.: 
+
 $PYTHON_PATH $LIBRARY_PATH/train.py \
 --summary_comment=en_dictionary_parsed_lr_00001_max_len_512_creativity_metrics \
 --output_dir=models/en_dictionary_parsed_lr_00001_creativity \
