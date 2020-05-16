@@ -142,18 +142,25 @@ window.onload = () => {
         setTimeout(function(){ snackEl.className = snackEl.className.replace("show", ""); }, 3000);
       };
 
+
+      let originalCopySignal = {done: false};
       let tryCopyOrRedirect = (url) => {
-        if (copy(url)) {
-          showToast();
-        } else {
-          window.location = url;
-        }
+        copy(url)
+          .then(() => showToast())
+          .catch( () => {
+            if (originalCopySignal.done) {
+              showToast();
+            } else {
+              window.location = url;
+            }
+          });
       };
 
       let url = linkButtonEl.href;
       linkButtonEl.style.display = "none";
       linkButtonLoadingEl.style.display = "";
       if (history.state && history.state.word && history.state.permalink) {
+        copy(url).then(() => originalCopySignal.done = true);
         const controller = new AbortController();
         const signal = controller.signal;
         state.query_controller = controller;
