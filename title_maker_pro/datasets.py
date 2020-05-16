@@ -11,6 +11,7 @@ import torch
 import random
 import stanza
 import time
+import sys
 from collections import Counter
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
@@ -58,6 +59,22 @@ class GeneratedWord:
     example: Optional[str]
     decoded: Optional[str]
     decoded_tokens: Optional[List[int]]
+
+    @classmethod
+    def print_words(cls, words, f=sys.stdout):
+        for word in words:
+            word_str = [word.word]
+            if word.pos:
+                word_str.append(f"/{word.pos}/")
+            if word.topic:
+                word_str.append(f"[{word.topic}]")
+            print(" ".join(word_str), file=f)
+            print(f"\t{word.definition}{' |n| ' if word.example is None else ''}", file=f)
+            if word.example:
+                cleaned_example = word.example.replace("\n", "\n\t")
+                print(f"\t\"{cleaned_example}\"", file=f)
+
+            print("----------------", file=f)
 
 
 @dataclass
@@ -127,6 +144,24 @@ class Blacklist:
                 for x in itertools.chain.from_iterable([e.word] + e.derivatives for e in pickle.load(open(path, "rb")))
             )
         )
+        return cls(blacklist)
+
+    @classmethod
+    def from_urban_dictionary(cls, path, loaded=None):
+        class RenamingUnpickler(pickle.Unpickler):
+            def find_class(self, module, name):
+                if module == 'urban_dictionary_scraper':
+                    module = 'title_maker_pro.urban_dictionary_scraper'
+                return super().find_class(module, name)
+
+        with open(path, "rb") as f:
+            ordered_dict = (loaded or RenamingUnpickler(f).load())
+            blacklist = set(
+                (
+                    x.word.lower()
+                    for x in itertools.chain.from_iterable(e.definitions for e in ordered_dict.values())
+                )
+            )
         return cls(blacklist)
 
     def dump(self, path):
@@ -244,51 +279,51 @@ class SpecialTokens:
             "additional_special_tokens": [cls.DEFINITION_SEP, cls.EXAMPLE_SEP, cls.POS_SEP, cls.TOPIC_SEP],
         }
 
+@dataclass
+class GenerationStats:
+    num_iterations: int = 0
 
-class ParsedDictionaryDefinitionDataset(Dataset):
-    @dataclass
-    class GenerationStats:
-        num_iterations: int = 0
+    num_items_considered: int = 0
+    num_failed_match: int = 0
+    num_blacklist_filtered: int = 0
+    num_seen_filtered: int = 0
+    num_proper_noun_filtered: int = 0
 
-        num_items_considered: int = 0
-        num_failed_match: int = 0
-        num_blacklist_filtered: int = 0
-        num_seen_filtered: int = 0
-        num_proper_noun_filtered: int = 0
+    num_example_missing: int = 0
 
-        num_example_missing: int = 0
+    num_user_filtered: int = 0
+    num_returned: int = 0
+    num_example_pos_match_failed: int = 0
+    num_example_missing_title: int = 0
+    num_short_definitions: int = 0
+    wall_time: float = 0.0
+    wall_stanza_time: float = 0.0
 
-        num_user_filtered: int = 0
-        num_returned: int = 0
-        num_example_pos_match_failed: int = 0
-        num_example_missing_title: int = 0
-        num_short_definitions: int = 0
-        wall_time: float = 0.0
-        wall_stanza_time: float = 0.0
-
-        def __str__(self):
-            return (
-                f"iterations={self.num_iterations} time={self.wall_time} stanza_time={self.wall_stanza_time} | "
-                + ", ".join(
-                    f"{k} {v / self.num_items_considered:.2f}@{v}"
-                    for k, v in (
-                        ("items_considered", self.num_items_considered),
-                        ("failed_match", self.num_failed_match),
-                        ("blacklist_filtered", self.num_blacklist_filtered),
-                        ("seen_filtered", self.num_seen_filtered),
-                        ("proper_noun_filtered", self.num_proper_noun_filtered),
-                        ("example_missing", self.num_example_missing),
-                        ("short_definitions", self.num_short_definitions),
-                        ("example_missing_title", self.num_example_missing_title),
-                        ("example_pos_match_failed", self.num_example_pos_match_failed),
-                        ("user_filtered", self.num_user_filtered),
-                        ("returned", self.num_returned),
-                    )
+    def __str__(self):
+        return (
+            f"iterations={self.num_iterations} time={self.wall_time} stanza_time={self.wall_stanza_time} | "
+            + ", ".join(
+                f"{k} {v / self.num_items_considered:.2f}@{v}"
+                for k, v in (
+                    ("items_considered", self.num_items_considered),
+                    ("failed_match", self.num_failed_match),
+                    ("blacklist_filtered", self.num_blacklist_filtered),
+                    ("seen_filtered", self.num_seen_filtered),
+                    ("proper_noun_filtered", self.num_proper_noun_filtered),
+                    ("example_missing", self.num_example_missing),
+                    ("short_definitions", self.num_short_definitions),
+                    ("example_missing_title", self.num_example_missing_title),
+                    ("example_pos_match_failed", self.num_example_pos_match_failed),
+                    ("user_filtered", self.num_user_filtered),
+                    ("returned", self.num_returned),
                 )
             )
+        )
 
+
+class ParsedDictionaryDefinitionDataset(Dataset):
     @classmethod
-    def _split_re(self):
+    def _split_re(cls):
         split_re_pat = (
             f"^{re.escape(SpecialTokens.BOS_TOKEN)}(?P<title>.+?)"
             f"(?:{re.escape(SpecialTokens.POS_SEP)}(?P<pos>.+?))?"
@@ -393,7 +428,7 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
         split_re = cls._split_re()
         seen_titles = set()
-        stats = cls.GenerationStats()
+        stats = GenerationStats()
         t = tqdm(total=num)
         while len(ret) < num and num_iteration < max_iterations:
             num_iteration += 1
@@ -894,7 +929,8 @@ class BinaryDictionaryDefinitionDataset(Dataset):
 
 
 class UrbanDictionaryDataset(Dataset):
-    def _split_re(self):
+    @classmethod
+    def _split_re(cls):
         split_re_pat = (
             f"^{re.escape(SpecialTokens.BOS_TOKEN)}(?P<title>.+?)"
             f"{re.escape(SpecialTokens.DEFINITION_SEP)}(?P<definition>.+?)"
@@ -938,7 +974,7 @@ class UrbanDictionaryDataset(Dataset):
 
         split_re = cls._split_re()
         seen_titles = set()
-        stats = cls.GenerationStats()
+        stats = GenerationStats()
         t = tqdm(total=num)
         while len(ret) < num and num_iteration < max_iterations:
             num_iteration += 1
@@ -992,16 +1028,14 @@ class UrbanDictionaryDataset(Dataset):
 
                 title = m.group("title")
                 definition = m.group("definition")
-                topic = m.group("topic")
-                pos = m.group("pos")
                 example = m.group("example")
 
                 generated_word = GeneratedWord(
                     word=title and title.strip(),
                     definition=definition and definition.strip(),
                     example=example and example.strip(),
-                    pos=pos and pos.strip(),
-                    topic=topic and topic.strip(),
+                    pos=None,
+                    topic=None,
                     decoded=decoded,
                     decoded_tokens=sentence_tokens,
                 )
