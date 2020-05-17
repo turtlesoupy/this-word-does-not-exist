@@ -11,6 +11,7 @@ import hashlib
 import words
 import hmac
 from word_service.word_service_proto import wordservice_pb2
+from word_service.word_service_proto.wordservice_pb2 import DatasetType
 from word_service.word_service_proto import wordservice_grpc
 from grpclib.client import Channel
 from grpclib.exceptions import GRPCError
@@ -19,8 +20,22 @@ import logging
 import base64
 from async_lru import alru_cache
 from title_maker_pro.bad_words import grawlix
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _load_word_indexes_from_base_dir(base_dir):
+    base_dir = Path(base_dir)
+    return {
+        DatasetType.OED: words.WordIndex.load(base_dir / "words.json.gz"),
+        DatasetType.UD_FILTERED: words.WordIndex.load_encrypted(
+            base_dir / "words_ud_filtered.enc.gz", fernet_key=os.environ["FERNET_ENCRYPTION_KEY"]
+        ),
+        DatasetType.UD_UNFILTERED: words.WordIndex.load_encrypted(
+            base_dir / "words_ud_unfiltered.enc.gz", fernet_key=os.environ["FERNET_ENCRYPTION_KEY"]
+        ),
+    }
 
 
 def _json_error(klass, message):
@@ -32,7 +47,7 @@ def _dev_handlers():
     return Handlers(
         word_service_address="localhost",
         word_service_port=8000,
-        word_index=words.WordIndex.load("./website/data/words.json.gz"),
+        word_indexes=_load_word_indexes_from_base_dir("./website/data"),
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
         permalink_hmac_key=os.environ["PERMALINK_HMAC_KEY"],
         gcloud_api_key=os.environ["GCLOUD_API_KEY"],
@@ -52,13 +67,12 @@ def _grpc_nonretriable(e: GRPCError):
     )
 
 
-
 class Handlers:
     def __init__(
         self,
         word_service_address,
         word_service_port,
-        word_index,
+        word_indexes,
         recaptcha_server_token,
         permalink_hmac_key,
         gcloud_api_key,
@@ -67,7 +81,7 @@ class Handlers:
     ):
         self.word_service_channel = Channel(word_service_address, word_service_port)
         self.word_service = wordservice_grpc.WordServiceStub(self.word_service_channel)
-        self.word_index = word_index
+        self.word_indexes = word_indexes
         self.permalink_hmac_key = permalink_hmac_key.encode("utf-8")
         self.recaptcha_server_token = recaptcha_server_token
         self.captcha_timeout = captcha_timeout
@@ -83,6 +97,27 @@ class Handlers:
         await self.firebase_session.close()
         self.word_service_channel.close()
 
+    @web.middleware
+    async def dataset_middleware(self, request, handler):
+        dataset = request.query.get("dataset")
+        secret = request.query.get("secret")
+        if dataset == "ud_filtered":
+            request.dataset = DatasetType.UD_FILTERED
+            if secret != os.environ["UD_SECRET"]:
+                raise _json_error(web.HTTPBadRequest, "Bad")
+            request.dataset_qs = f"dataset={dataset}&secret={os.environ['UD_SECRET']}"
+        elif dataset == "ud_unfiltered":
+            if secret != os.environ["UD_SECRET"]:
+                raise _json_error(web.HTTPBadRequest, "Bad")
+            request.dataset = DatasetType.UD_FILTERED
+            request.dataset_qs = f"dataset={dataset}&secret={os.environ['UD_SECRET']}"
+        else:
+            request.dataset = DatasetType.OED
+            request.dataset_qs = ""
+
+        resp = await handler(request)
+        return resp
+
     def _view_word_permalink(self, view_word):
         payload = base64.urlsafe_b64encode(json.dumps(view_word.to_short_dict()).encode("utf-8"))
         signature = base64.urlsafe_b64encode(hmac.new(self.permalink_hmac_key, payload, digestmod=hashlib.sha256).digest())
@@ -92,7 +127,7 @@ class Handlers:
     def _full_permalink_url(self, view_word, permalink):
         return f"https://www.thisworddoesnotexist.com/w/{quote_plus(view_word.word)}/{permalink}"
 
-    def _index_response(self, word, word_in_title=False):
+    def _index_response(self, request, word, word_in_title=False):
         permalink = self._view_word_permalink(word)
         return {
             "word": word, 
@@ -101,11 +136,14 @@ class Handlers:
             "permalink": permalink,
             "full_url": self._full_permalink_url(word, permalink),
             "word_in_title": bool(word_in_title),
+            "urban": request.dataset in (DatasetType.UD_FILTERED, DatasetType.UD_UNFILTERED),
+            "dataset_qs": request.dataset_qs,
         }
 
     @aiohttp_jinja2.template("index.jinja2")
     async def index(self, request):
-        return self._index_response(self.word_index.random())
+        word_index = self.word_indexes[request.dataset]
+        return self._index_response(request, word_index.random())
 
     def _word_from_url(self, request):
         _ = request.match_info["word"]
@@ -117,6 +155,10 @@ class Handlers:
         
         word_dict = json.loads(base64.urlsafe_b64decode(payload).decode("utf-8"))
         w = words.Word.from_dict(word_dict)
+
+        if w.dataset_type and w.dataset_type != request.dataset_type:
+            raise _json_error(web.HTTPBadRequest, "Mismatched word dataset")
+
         return w
 
     @aiohttp_jinja2.template("index.jinja2")
@@ -163,9 +205,12 @@ class Handlers:
     @alru_cache(maxsize=65536)
     @backoff.on_exception(backoff.expo, ConnectionRefusedError, max_time=20)
     @backoff.on_exception(backoff.expo, GRPCError, max_time=20, giveup=_grpc_nonretriable)
-    async def _cached_fetch_word_definition(self, word):
+    async def _cached_fetch_word_definition(self, word, dataset):
         return await self.word_service.DefineWord(
-            wordservice_pb2.DefineWordRequest(word=word),
+            wordservice_pb2.DefineWordRequest(
+                word=word,
+                dataset=dataset,
+            ),
             metadata=(('x-api-key', self.gcloud_api_key),)
         )
 
@@ -187,7 +232,7 @@ class Handlers:
             raise _json_error(web.HTTPBadRequest, "Baddo")
 
         try:
-            response = await self._cached_fetch_word_definition(word)
+            response = await self._cached_fetch_word_definition(word, request.dataset)
         except Exception:
             logging.exception("Couldn't fetch word definition")
             raise
@@ -206,7 +251,9 @@ class Handlers:
 
 def app(handlers=None):
     handlers = handlers or _dev_handlers()
-    app = web.Application()
+    app = web.Application(
+        middlewares=[handlers.dataset_middleware]
+    )
     app.on_startup.append(handlers.on_startup)
     app.on_cleanup.append(handlers.on_cleanup)
     app.add_routes(
@@ -235,18 +282,19 @@ if __name__ == "__main__":
     parser.add_argument("--path", type=str, help="Unix socket path")
     parser.add_argument("--word-service-address", type=str, help="Word service address", required=True)
     parser.add_argument("--word-service-port", type=int, help="Word service port", required=True)
-    parser.add_argument("--word-index-path", type=str, help="Path to word index", required=True)
+    parser.add_argument("--word-index-base-dir", type=str, help="Path to word index", required=True)
+    parser.add_argument("--urban-word-index-path", type=str, help="Path to urban word index", required=True)
     parser.add_argument("--verbose", type=str, help="Verbose logging")
     args = parser.parse_args()
 
     lvl = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=lvl)
 
-    wi = words.WordIndex.load(args.word_index_path)
+    word_indexes = _load_word_indexes_from_base_dir(args.word_index_base_dir)
     handlers = Handlers(
         args.word_service_address,
         args.word_service_port,
-        word_index=wi,
+        word_indexes=word_indexes,
         recaptcha_server_token=os.environ["RECAPTCHA_SERVER_TOKEN"],
         permalink_hmac_key=os.environ["PERMALINK_HMAC_KEY"],
         gcloud_api_key=os.environ["GCLOUD_API_KEY"],

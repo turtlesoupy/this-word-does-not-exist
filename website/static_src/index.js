@@ -202,7 +202,16 @@ window.onload = () => {
       state.query_controller = controller;
 
       setTimeout(() => controller.abort(), 30000);
-      window.fetch(`/define_word?word=${encodeURIComponent(word)}&token=${token}`, {signal})
+      let url = `/define_word?word=${encodeURIComponent(word)}&token=${token}`;
+
+      if (typeof URLSearchParams  !== undefined) {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("dataset") && params.has("secret")) {
+          url += `&dataset=${params.get("dataset")}&secret=${params.get("secret")}`;
+        }
+      }
+      
+      window.fetch(url, {signal})
         .then(res => res.json())
         .then(json => {
           if (!json.word) {

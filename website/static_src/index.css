@@ -6,6 +6,11 @@ body {
   font-display: swap;
 }
 
+body.urban {
+  background: darkred;
+  color: white;
+}
+
 a {
     color: #51b8b8;
     text-decoration: none;
@@ -18,6 +23,18 @@ a:visited {
 
 a:hover {
     color: hotpink;
+}
+
+body.urban a {
+    color:lightsalmon;
+}
+
+body.urban a:visited {
+    color: lightsalmon;
+}
+
+body.urban a:hover {
+    color: darkgray;
 }
 
 a.disabled, a.disabled:visited, a.disabled:hover {
@@ -141,6 +158,11 @@ a.darken:hover img {
     margin: 0;
 }
 
+body.urban .word-entry {
+    color:lightsalmon;
+}
+
+
 .definition-zone ol {
     padding-inline-start: 20px;
 }
@@ -189,6 +211,10 @@ a.darken:hover img {
    position: fixed;
    bottom: 22px;
    background: #08082d;
+}
+
+body.urban .attribution {
+  background: darkred;
 }
 
 .attribution-section {

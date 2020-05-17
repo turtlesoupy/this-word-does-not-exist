@@ -2,6 +2,12 @@ syntax = "proto3";
 
 package endpoints.word_service;
 
+enum DatasetType {
+    OED = 0;
+    UD_FILTERED = 1;
+    UD_UNFILTERED = 2;
+}
+
 service WordService {
   rpc DefineWord(DefineWordRequest) returns (DefineWordResponse) {}
   rpc WordFromDefinition(WordFromDefinitionRequest) returns (WordFromDefinitionResponse) {}
@@ -19,7 +25,9 @@ message WordDefinition {
 
 message DefineWordRequest {
   string word = 1;
+  DatasetType dataset = 2;
 }
+
 message DefineWordResponse {
   WordDefinition word = 1;
 }

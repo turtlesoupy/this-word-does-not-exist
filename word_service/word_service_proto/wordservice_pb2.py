@@ -3,6 +3,7 @@
 
 import sys
 _b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
+from google.protobuf.internal import enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
@@ -19,9 +20,39 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='endpoints.word_service',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x11wordservice.proto\x12\x16\x65ndpoints.word_service\"|\n\x0eWordDefinition\x12\x0c\n\x04word\x18\x01 \x01(\t\x12\x12\n\ndefinition\x18\x02 \x01(\t\x12\x0b\n\x03pos\x18\x03 \x01(\t\x12\x10\n\x08\x65xamples\x18\x04 \x03(\t\x12\x11\n\tsyllables\x18\x05 \x03(\t\x12\x16\n\x0eprobablyExists\x18\x06 \x01(\x08\"!\n\x11\x44\x65\x66ineWordRequest\x12\x0c\n\x04word\x18\x01 \x01(\t\"J\n\x12\x44\x65\x66ineWordResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition\"/\n\x19WordFromDefinitionRequest\x12\x12\n\ndefinition\x18\x01 \x01(\t\"R\n\x1aWordFromDefinitionResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition\"\x15\n\x13GenerateWordRequest\"L\n\x14GenerateWordResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition2\xe0\x02\n\x0bWordService\x12\x65\n\nDefineWord\x12).endpoints.word_service.DefineWordRequest\x1a*.endpoints.word_service.DefineWordResponse\"\x00\x12}\n\x12WordFromDefinition\x12\x31.endpoints.word_service.WordFromDefinitionRequest\x1a\x32.endpoints.word_service.WordFromDefinitionResponse\"\x00\x12k\n\x0cGenerateWord\x12+.endpoints.word_service.GenerateWordRequest\x1a,.endpoints.word_service.GenerateWordResponse\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n\x11wordservice.proto\x12\x16\x65ndpoints.word_service\"|\n\x0eWordDefinition\x12\x0c\n\x04word\x18\x01 \x01(\t\x12\x12\n\ndefinition\x18\x02 \x01(\t\x12\x0b\n\x03pos\x18\x03 \x01(\t\x12\x10\n\x08\x65xamples\x18\x04 \x03(\t\x12\x11\n\tsyllables\x18\x05 \x03(\t\x12\x16\n\x0eprobablyExists\x18\x06 \x01(\x08\"W\n\x11\x44\x65\x66ineWordRequest\x12\x0c\n\x04word\x18\x01 \x01(\t\x12\x34\n\x07\x64\x61taset\x18\x02 \x01(\x0e\x32#.endpoints.word_service.DatasetType\"J\n\x12\x44\x65\x66ineWordResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition\"/\n\x19WordFromDefinitionRequest\x12\x12\n\ndefinition\x18\x01 \x01(\t\"R\n\x1aWordFromDefinitionResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition\"\x15\n\x13GenerateWordRequest\"L\n\x14GenerateWordResponse\x12\x34\n\x04word\x18\x01 \x01(\x0b\x32&.endpoints.word_service.WordDefinition*:\n\x0b\x44\x61tasetType\x12\x07\n\x03OED\x10\x00\x12\x0f\n\x0bUD_FILTERED\x10\x01\x12\x11\n\rUD_UNFILTERED\x10\x02\x32\xe0\x02\n\x0bWordService\x12\x65\n\nDefineWord\x12).endpoints.word_service.DefineWordRequest\x1a*.endpoints.word_service.DefineWordResponse\"\x00\x12}\n\x12WordFromDefinition\x12\x31.endpoints.word_service.WordFromDefinitionRequest\x1a\x32.endpoints.word_service.WordFromDefinitionResponse\"\x00\x12k\n\x0cGenerateWord\x12+.endpoints.word_service.GenerateWordRequest\x1a,.endpoints.word_service.GenerateWordResponse\"\x00\x62\x06proto3')
 )
 
+_DATASETTYPE = _descriptor.EnumDescriptor(
+  name='DatasetType',
+  full_name='endpoints.word_service.DatasetType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='OED', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='UD_FILTERED', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='UD_UNFILTERED', index=2, number=2,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=570,
+  serialized_end=628,
+)
+_sym_db.RegisterEnumDescriptor(_DATASETTYPE)
+
+DatasetType = enum_type_wrapper.EnumTypeWrapper(_DATASETTYPE)
+OED = 0
+UD_FILTERED = 1
+UD_UNFILTERED = 2
 
 
 
@@ -105,6 +136,13 @@ _DEFINEWORDREQUEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='dataset', full_name='endpoints.word_service.DefineWordRequest.dataset', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -118,7 +156,7 @@ _DEFINEWORDREQUEST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=171,
-  serialized_end=204,
+  serialized_end=258,
 )
 
 
@@ -148,8 +186,8 @@ _DEFINEWORDRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=206,
-  serialized_end=280,
+  serialized_start=260,
+  serialized_end=334,
 )
 
 
@@ -179,8 +217,8 @@ _WORDFROMDEFINITIONREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=282,
-  serialized_end=329,
+  serialized_start=336,
+  serialized_end=383,
 )
 
 
@@ -210,8 +248,8 @@ _WORDFROMDEFINITIONRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=331,
-  serialized_end=413,
+  serialized_start=385,
+  serialized_end=467,
 )
 
 
@@ -234,8 +272,8 @@ _GENERATEWORDREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=415,
-  serialized_end=436,
+  serialized_start=469,
+  serialized_end=490,
 )
 
 
@@ -265,10 +303,11 @@ _GENERATEWORDRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=438,
-  serialized_end=514,
+  serialized_start=492,
+  serialized_end=568,
 )
 
+_DEFINEWORDREQUEST.fields_by_name['dataset'].enum_type = _DATASETTYPE
 _DEFINEWORDRESPONSE.fields_by_name['word'].message_type = _WORDDEFINITION
 _WORDFROMDEFINITIONRESPONSE.fields_by_name['word'].message_type = _WORDDEFINITION
 _GENERATEWORDRESPONSE.fields_by_name['word'].message_type = _WORDDEFINITION
@@ -279,6 +318,7 @@ DESCRIPTOR.message_types_by_name['WordFromDefinitionRequest'] = _WORDFROMDEFINIT
 DESCRIPTOR.message_types_by_name['WordFromDefinitionResponse'] = _WORDFROMDEFINITIONRESPONSE
 DESCRIPTOR.message_types_by_name['GenerateWordRequest'] = _GENERATEWORDREQUEST
 DESCRIPTOR.message_types_by_name['GenerateWordResponse'] = _GENERATEWORDRESPONSE
+DESCRIPTOR.enum_types_by_name['DatasetType'] = _DATASETTYPE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 WordDefinition = _reflection.GeneratedProtocolMessageType('WordDefinition', (_message.Message,), dict(
@@ -338,8 +378,8 @@ _WORDSERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=517,
-  serialized_end=869,
+  serialized_start=631,
+  serialized_end=983,
   methods=[
   _descriptor.MethodDescriptor(
     name='DefineWord',

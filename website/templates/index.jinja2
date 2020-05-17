@@ -67,7 +67,7 @@
    <script async defer src="https://www.google.com/recaptcha/api.js"></script>
 </head>
 
-<body>
+<body class="{{'urban' if urban else ''}}">
     <div class="site-wrapper">
         <div class="intro">
             <div class="intro-left">
@@ -106,28 +106,39 @@
                     <li>
                         <div class="definition-section">
                             <div id="definition-definition" class="definition"> {{word.definition}} </div>
-                            <div id="definition-example" class="example">"{{word.example | strip_quotes}}"</div>
+                            <div id="definition-example" class="example">"{{word.example | strip_quotes | replace("\n", "<br />") | safe}}"</div>
                         </div>
                     </li>
 
                     <li>
                         <div class="definition-section">
                             <span id="definition-word-no-exist" {{('style="display: none"' if (word_exists is sameas true) else "")|safe}}>
-                                a word that does not exist; it was invented, defined and used by a machine learning algorithm. 
+                                {% if urban %}
+                                slang
+                                {% else %}
+                                a word
+                                {% endif %}
+                                that does not exist; it was invented, defined and used by a machine learning algorithm. 
                             </span>
                             <span id="definition-word-exists" {{('style="display: none"' if (word_exists is sameas false) else "")|safe}}>
-                                a word that <a id="word-exists-link" href="https://www.google.com/search?q={{word.word|quote_plus}}">probably exists;</a>
+                                {% if urban %}
+                                slang
+                                {% else %}
+                                a word
+                                {% endif %}
+                                that <a id="word-exists-link" href="https://www.google.com/search?q={{word.word|quote_plus}}">probably exists;</a>
                                 with an alternative definition made by a machine learning algorithm.
                             </span>
                             <br />
                             <br />
+                            {% if urban is sameas false %}
                             <a id="link-button-a" href="{{full_url}}">
                                 Link
                             </a>
                             <span id="link-button-loading" style="display: none;">Copying</span>
-
                             /
-                            <a href="/">New word </a> / 
+                            {% endif %}
+                            <a href="/{{'?' + dataset_qs if dataset_qs else ''}}">New word </a> / 
                             <a id="write-button" class="disabled" href="/">Write your own </a> 
                         </div>
                     </li>
