@@ -300,7 +300,6 @@ if __name__ == "__main__":
     parser.add_argument("--word-service-address", type=str, help="Word service address", required=True)
     parser.add_argument("--word-service-port", type=int, help="Word service port", required=True)
     parser.add_argument("--word-index-base-dir", type=str, help="Path to word index", required=True)
-    parser.add_argument("--urban-word-index-path", type=str, help="Path to urban word index", required=True)
     parser.add_argument("--verbose", type=str, help="Verbose logging")
     args = parser.parse_args()
 
