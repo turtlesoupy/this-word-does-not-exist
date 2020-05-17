@@ -13,6 +13,7 @@ RUN mkdir -p /app/models
 WORKDIR /app/models
 RUN curl https://storage.googleapis.com/this-word-does-not-exist-models/forward-dictionary-model-v1.tar.gz | tar -xz
 RUN curl https://storage.googleapis.com/this-word-does-not-exist-models/inverse-dictionary-model-v1.tar.gz | tar -xz
+RUN curl https://storage.googleapis.com/this-word-does-not-exist-models/forward-urban-dictionary-model-v1.tar.gz | tar -xz
 RUN curl -O https://storage.googleapis.com/this-word-does-not-exist-models/blacklist.pickle.gz && gunzip blacklist.pickle.gz
 
 WORKDIR /app
@@ -30,6 +31,7 @@ ENTRYPOINT ["/bin/bash", "-c", "source activate title_maker_pro && \
   python word_service/wordservice_server.py \
   --forward-model-path models/forward-dictionary-model-v1 \
   --inverse-model-path models/inverse-dictionary-model-v1 \
+  --forward-urban-model-path models/forward-urban-dictionary-model-v1 \
   --blacklist-path models/blacklist.pickle \
   --quantize \
   --device cpu \
