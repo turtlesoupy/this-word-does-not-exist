@@ -3,7 +3,14 @@ const copy = require('clipboard-copy');
 
 function wordURL(word, permalink, relative) {
   const base = relative ? "" : "https://www.thisworddoesnotexist.com";
-  return `${base}/w/${encodeURIComponent(word)}` + (permalink ? `/${permalink}` : "");
+  let query_params = "";
+  if (typeof URLSearchParams  !== undefined) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("dataset") && params.has("secret")) {
+      query_params = `?dataset=${params.get("dataset")}&secret=${params.get("secret")}`;
+    }
+  }
+  return `${base}/w/${encodeURIComponent(word)}` + (permalink ? `/${permalink}` : "") + query_params;
 }
 
 
@@ -28,7 +35,7 @@ function syncToWord(word, permalink, pushHistory) {
   let wordExistsLinkEl = document.getElementById("word-exists-link");
 
   posEl.innerHTML = word.pos;
-  if (!posEl.innerHTML.endsWith("]")) {
+  if (word.pos && !word.pos.endsWith("]")) {
     posEl.innerHTML += ".";
   }
 

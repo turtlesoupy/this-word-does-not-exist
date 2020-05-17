@@ -21,6 +21,7 @@ message WordDefinition {
   repeated string examples = 4;
   repeated string syllables = 5;
   bool probablyExists = 6;
+  DatasetType dataset = 7;
 }
 
 message DefineWordRequest {

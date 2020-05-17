@@ -6,6 +6,7 @@ import os
 import grpc
 import logging
 from word_service_proto import wordservice_pb2
+from word_service_proto.wordservice_pb2 import DatasetType
 from word_service_proto import wordservice_pb2_grpc
 from contextlib import contextmanager
 
@@ -25,11 +26,12 @@ def context(grpc_context):
 
 
 class WordServiceServicer(wordservice_pb2_grpc.WordServiceServicer):
-    def __init__(self, word_generator, hyphenator):
+    def __init__(self, word_generator, hyphenator, urban_generator):
         self.word_generator = word_generator
         self.hyphenator = hyphenator
+        self.urban_generator = urban_generator
 
-    def gen_word_to_word_definition(self, gen_word):
+    def gen_word_to_word_definition(self, gen_word, dataset):
         if gen_word is None:
             return wordservice_pb2.WordDefinition()
         else:
@@ -41,6 +43,7 @@ class WordServiceServicer(wordservice_pb2_grpc.WordServiceServicer):
                 examples=[gen_word.example],
                 syllables=self.hyphenator.syllables(gen_word.word),
                 probablyExists=self.word_generator.probably_real_word(gen_word.word),
+                dataset=dataset,
             )
 
     def GenerateWord(self, request, context):
@@ -52,8 +55,15 @@ class WordServiceServicer(wordservice_pb2_grpc.WordServiceServicer):
         return wordservice_pb2.WordFromDefinitionResponse(word=self.gen_word_to_word_definition(gen_word))
 
     def DefineWord(self, request, context):
-        gen_word = self.word_generator.generate_definition(request.word)
-        return wordservice_pb2.DefineWordResponse(word=self.gen_word_to_word_definition(gen_word))
+        if request.dataset in (DatasetType.UD_FILTERED, DatasetType.UD_UNFILTERED):
+            gen_word = self.urban_generator.generate_definition(request.word)
+        elif request.dataset is None or request.dataset == DatasetType.OED:
+            gen_word = self.word_generator.generate_definition(request.word)
+        else:
+            raise RuntimeError("Bad dataset")
+        return wordservice_pb2.DefineWordResponse(
+            word=self.gen_word_to_word_definition(gen_word, dataset=request.dataset)
+        )
 
 
 def main(args):
@@ -73,7 +83,20 @@ def main(args):
         inverse_model_path=args.inverse_model_path,
         blacklist_path=args.blacklist_path,
         quantize=args.quantize,
+        is_urban=False,
     )
+    urban_generator = None
+    if args.forward_urban_model_path:
+        logging.info(f"Creating urban model from {args.forward_urban_model_path}")
+        urban_generator = WordGenerator(
+            device=args.device,
+            forward_model_path=args.forward_urban_model_path,
+            inverse_model_path=None,
+            blacklist_path=args.blacklist_path,
+            quantize=args.quantize,
+            is_urban=True,
+        )
+
     h_en = Hyphenator('en_US')
 
     logging.info(f"Warming up with word generation")
@@ -81,7 +104,10 @@ def main(args):
     logging.info(f"Generated {gen_word}")
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    wordservice_pb2_grpc.add_WordServiceServicer_to_server(WordServiceServicer(word_generator, h_en), server)
+    wordservice_pb2_grpc.add_WordServiceServicer_to_server(
+        WordServiceServicer(word_generator, h_en, urban_generator=urban_generator), 
+        server
+    )
     server.add_insecure_port("[::]:{}".format(port))
     server.start()
 
@@ -111,6 +137,7 @@ if __name__ == "__main__":
         "--device", help="Force a certain device (cuda / cpu)", type=str,
     )
     parser.add_argument("--forward-model-path", help="Model path for (Word -> Definition)", type=str, required=True)
+    parser.add_argument("--forward-urban-model-path", help="Urban dictionary model path", type=str, required=True)
     parser.add_argument("--inverse-model-path", help="Model path for (Definition -> Word)", type=str, required=True)
     parser.add_argument(
         "--blacklist-path", help="Blacklist path for word generation", type=str, required=True,

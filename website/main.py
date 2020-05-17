@@ -1,3 +1,4 @@
+import re
 import os
 import json
 import jinja2
@@ -21,6 +22,9 @@ import base64
 from async_lru import alru_cache
 from title_maker_pro.bad_words import grawlix
 from pathlib import Path
+from jinja2 import evalcontextfilter
+from markupsafe import Markup, escape
+
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +69,18 @@ def _grpc_nonretriable(e: GRPCError):
         Status.FAILED_PRECONDITION,
         Status.UNAUTHENTICATED,
     )
+
+
+_paragraph_re = re.compile(r'(?:\r\n|\r|\n){2,}')
+
+
+@evalcontextfilter
+def nl2br(eval_ctx, value):
+    result = u'\n\n'.join(p.replace('\n', Markup('<br>\n'))
+                          for p in _paragraph_re.split(escape(value)))
+    if eval_ctx.autoescape:
+        result = Markup(result)
+    return result
 
 
 class Handlers:
@@ -156,7 +172,7 @@ class Handlers:
         word_dict = json.loads(base64.urlsafe_b64decode(payload).decode("utf-8"))
         w = words.Word.from_dict(word_dict)
 
-        if w.dataset_type and w.dataset_type != request.dataset_type:
+        if w.dataset_type and w.dataset_type != request.dataset:
             raise _json_error(web.HTTPBadRequest, "Mismatched word dataset")
 
         return w
@@ -164,7 +180,7 @@ class Handlers:
     @aiohttp_jinja2.template("index.jinja2")
     async def word(self, request):
         w = self._word_from_url(request)
-        return self._index_response(w, word_in_title=True)
+        return self._index_response(request, w, word_in_title=True)
 
     async def shorten_word_url(self, request):
         w = self._word_from_url(request)
@@ -272,6 +288,7 @@ def app(handlers=None):
             "remove_period": lambda x: x.rstrip("."),
             "escape_double": lambda x: x.replace('"', r'\"'),
             "strip_quotes": lambda x: x.strip('"'),
+            "nl2br": nl2br,
         },
     )
     return app

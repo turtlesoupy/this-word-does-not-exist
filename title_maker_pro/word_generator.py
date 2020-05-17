@@ -9,11 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 class WordGenerator:
-    def __init__(self, forward_model_path, inverse_model_path, blacklist_path, quantize=False, device=None):
+    def __init__(self, forward_model_path, inverse_model_path, blacklist_path, quantize=False, device=None, is_urban=False):
         if not device:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
             self.device = torch.device(device)
+
+        self.is_urban = is_urban
 
         stanza.download("en")
         self.stanza_pos_pipeline = stanza.Pipeline(
@@ -40,13 +42,20 @@ class WordGenerator:
         self.forward_model = ml(AutoModelWithLMHead, forward_model_path).to(self.device)
         logger.info("Loaded forward model")
 
-        logger.info(f"Loading inverse model from {inverse_model_path}")
-        self.inverse_model = ml(AutoModelWithLMHead, inverse_model_path).to(self.device)
-        logger.info("Loaded inverse model")
+        if inverse_model_path:
+            logger.info(f"Loading inverse model from {inverse_model_path}")
+            self.inverse_model = ml(AutoModelWithLMHead, inverse_model_path).to(self.device)
+            logger.info("Loaded inverse model")
+        else:
+            self.inverse_model = None
+            logger.info(f"Skipping inverse model")
 
         self.approx_max_length = 250
 
     def generate_word(self, user_filter=None):
+        if self.is_urban:
+            raise RuntimeError("Urban dataset not supported yet")
+
         expanded, _ = datasets.ParsedDictionaryDefinitionDataset.generate_words(
             self.tokenizer,
             self.forward_model,
@@ -68,7 +77,35 @@ class WordGenerator:
     def probably_real_word(self, word):
         return self.blacklist.contains(word)
 
+    def generate_urban_definition(self, word, user_filter=None):
+        prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{word}{datasets.SpecialTokens.DEFINITION_SEP}"
+        expanded, stats = datasets.UrbanDictionaryDataset.generate_words(
+            self.tokenizer,
+            self.forward_model,
+            num=1,
+            prefix=prefix,
+            max_iterations=1,
+            generation_args=dict(top_k=50, num_return_sequences=5, max_length=self.approx_max_length, do_sample=True,),
+            dedupe_titles=False,
+            user_filter=user_filter,
+            filter_proper_nouns=False,
+            use_custom_generate=True,
+        )
+
+        logger.info(f"Urban generation stats: {stats} (found {len(expanded)} true and {len(stats.viable_candidates)} viable)")
+
+        if expanded:
+            return expanded[0]
+        elif stats.viable_candidates:
+            ret = max(stats.viable_candidates, key=lambda x: x.score).candidate
+            return ret
+        else:
+            return None
+
     def generate_definition(self, word, user_filter=None):
+        if self.is_urban:
+            return self.generate_urban_definition(word, user_filter)
+
         prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{word}{datasets.SpecialTokens.POS_SEP}"
         expanded, stats = datasets.ParsedDictionaryDefinitionDataset.generate_words(
             self.tokenizer,
@@ -127,6 +164,9 @@ class WordGenerator:
             return None
 
     def generate_word_from_definition(self, definition, user_filter=None):
+        if self.is_urban:
+            raise RuntimeError("Urban dataset not supported yet")
+
         # Data peculiarity: definitions ending in a period are out of domain
         prefix = f"{datasets.SpecialTokens.BOS_TOKEN}{definition.rstrip('. ')}{datasets.SpecialTokens.DEFINITION_SEP}"
         expanded, stats = datasets.InverseParsedDictionaryDefinitionDataset.generate_words(

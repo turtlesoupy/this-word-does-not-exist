@@ -88,7 +88,7 @@
         <div id="definition-zone" class="definition-zone">
             <div class="inner">
                 <div id="definition-pos" class="pos"> 
-                    {% if word.pos %}
+                    {% if word.pos and urban is sameas false %}
                     {{word.pos}}{{"" if word.pos.endswith("]") else "."}} 
                     {% endif %}
                 </div>
@@ -106,7 +106,7 @@
                     <li>
                         <div class="definition-section">
                             <div id="definition-definition" class="definition"> {{word.definition}} </div>
-                            <div id="definition-example" class="example">"{{word.example | strip_quotes | replace("\n", "<br />") | safe}}"</div>
+                            <div id="definition-example" class="example">"{{word.example | strip_quotes | nl2br }}"</div>
                         </div>
                     </li>
 
@@ -171,6 +171,11 @@
         </div>
 
         <div class="attribution">
+            {% if urban is sameas true %}
+            <div class="attribution-section">
+                <b>WARNING</b>: This is NSFW and a pre-release version of urban dictionary definitions
+            </div>
+            {% endif %}
             <div class="attribution-section">
                 Created by <a href="https://www.thomasdimson.com">Thomas Dimson</a> (<a href="https://twitter.com/turtlesoupy">@turtlesoupy</a>)
             </div>
@@ -186,6 +191,7 @@
                 You can <a href="https://www.buymeacoffee.com/turtlesoupy">buy me a coffee</a>
             </div>
 
+            {% if urban is sameas false %}
             <div class="attribution-section"> 
                 Thanks to <a href="http://pamelachen.com/">Pamela Chen</a> and <a href="http://rourkery.com/">Ryan O'Rourke</a>
             </div>
@@ -193,6 +199,7 @@
             <div class="attribution-section disclaimer">
                 Words are not reviewed and may reflect bias in the training set
             </div>
+            {% endif %}
         </div>
         <div id="snackbar" style="display: none;"><div>
     </div>

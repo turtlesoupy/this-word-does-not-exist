@@ -34,7 +34,7 @@ class Word:
             example=example,
             syllables=list(proto.syllables),
             probably_exists=proto.probablyExists,
-            dataset_type=None,
+            dataset_type=(proto.dataset or None),
         )
 
     @classmethod
@@ -49,7 +49,7 @@ class Word:
                 example=d["e"] if "e" in d else None,
                 syllables=d["s"] if "s" in d else None,
                 probably_exists=d["l"] if "l" in d else None,
-                dataset_type=d["dt"] if "t" in d else None,
+                dataset_type=d["dt"] if "dt" in d else None,
             )
         else:
             return cls(
