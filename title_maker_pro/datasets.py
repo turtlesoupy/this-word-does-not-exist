@@ -699,6 +699,7 @@ class InverseParsedDictionaryDefinitionDataset(Dataset):
 
         split_re = cls._split_re()
         seen_titles = set()
+        t = tqdm(total=num)
         while len(ret) < num and num_iteration < max_iterations:
             num_iteration += 1
             generated = model.generate(
@@ -747,6 +748,7 @@ class InverseParsedDictionaryDefinitionDataset(Dataset):
                 else:
                     ret.append(generated_word)
                     seen_titles.add(generated_word.word.lower())
+                    t.update()
 
         return ret[:num], None
 
