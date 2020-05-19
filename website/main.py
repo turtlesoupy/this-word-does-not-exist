@@ -161,6 +161,21 @@ class Handlers:
         word_index = self.word_indexes[request.dataset]
         return self._index_response(request, word_index.random())
 
+    async def random_word_json(self, request):
+        word_index = self.word_indexes[request.dataset]
+        word = word_index.random()
+        permalink = self._view_word_permalink(word)
+        full_permalink_url = self._full_permalink_url(word, permalink)
+        d = {
+            "word": word.to_dict(),
+            "permalink_url": full_permalink_url,
+        }
+
+        return web.Response(
+            text=json.dumps(d),
+            content_type="application/json",
+        )
+
     def _word_from_url(self, request):
         _ = request.match_info["word"]
         encrypted = request.match_info["encrypt"]
@@ -275,6 +290,7 @@ def app(handlers=None):
     app.add_routes(
         [
             web.get("/", handlers.index),
+            web.get("/api/random_word.json", handlers.random_word_json),
             web.get("/w/{word}/{encrypt}", handlers.word),
             web.get("/shorten_word_url/{word}/{encrypt}", handlers.shorten_word_url),
             web.get("/define_word", handlers.define_word),
