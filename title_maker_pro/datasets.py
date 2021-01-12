@@ -395,6 +395,114 @@ class ParsedDictionaryDefinitionDataset(Dataset):
         }
 
     @classmethod
+    def generate_words_only(
+        cls,
+        tokenizer,
+        model,
+        prefix=SpecialTokens.BOS_TOKEN,
+        num=100,
+        max_iterations=10,
+        generation_args={},
+        blacklist=None,
+        dedupe_titles=True,
+        filter_proper_nouns=False,
+        min_word_length=5,
+        max_word_length=25,
+    ):
+        """Generates only the first portion (words) of definitions"""
+        start = time.time()
+        ret = []
+        num_iteration = 0
+        if isinstance(prefix, str):
+            input = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
+        else:
+            input = torch.tensor([prefix], dtype=torch.long).to(model.device)
+
+        pos_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.POS_SEP))
+        example_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.EXAMPLE_SEP))
+        topic_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.TOPIC_SEP))
+        definition_sep_id = _access_zero_assert(tokenizer.encode(SpecialTokens.DEFINITION_SEP))
+
+        split_re_pat = (
+            f"^{re.escape(SpecialTokens.BOS_TOKEN)}\\s?(?P<title>\\w+?)\\s?"
+            f"{re.escape(SpecialTokens.EOS_TOKEN)}"
+        )
+        split_re = re.compile(split_re_pat, flags=re.MULTILINE | re.DOTALL | re.ASCII)
+
+        seen_titles = set()
+        stats = GenerationStats()
+        t = tqdm(total=num)
+        while len(ret) < num and num_iteration < max_iterations:
+            num_iteration += 1
+            stats.num_iterations += 1
+
+            def partial_generation_transform(input_ids, tokens_to_add):
+                for i in range(tokens_to_add.size()[0]):
+                    if tokens_to_add[i] in (pos_sep_id, topic_sep_id, definition_sep_id, example_sep_id):
+                        tokens_to_add[i] = tokenizer.eos_token_id
+
+                return tokens_to_add
+
+            generated = custom_modeling_utils.custom_generate(
+                model,
+                input,
+                pad_token_id=tokenizer.pad_token_id,
+                bos_token_id=tokenizer.bos_token_id,
+                eos_token_id=tokenizer.eos_token_id,
+                partial_generation_transform=partial_generation_transform,
+                **generation_args,
+            )
+
+            for i in range(generated.size()[0]):
+                if len(ret) >= num:
+                    break
+
+                stats.num_items_considered += 1
+                sentence_tokens = generated[i, :].tolist()
+                decoded = tokenizer.decode(sentence_tokens)
+
+                m = split_re.match(decoded)
+                if not m:
+                    stats.num_failed_match += 1
+                    continue
+
+                title = m.group("title")
+
+                generated_word = GeneratedWord(
+                    word=title and title.strip(),
+                    definition=None,
+                    example=None,
+                    pos=None,
+                    topic=None,
+                    decoded=decoded,
+                    decoded_tokens=sentence_tokens,
+                )
+
+                if blacklist and blacklist.contains(title):
+                    stats.num_blacklist_filtered += 1
+                    continue
+                
+                if len(title) < min_word_length or len(title) > max_word_length:
+                    continue
+
+                if dedupe_titles and title.strip().lower() in seen_titles:
+                    stats.num_seen_filtered += 1
+                    continue
+
+                if filter_proper_nouns and title.strip()[:1].isupper():
+                    stats.num_proper_noun_filtered += 1
+                    continue
+
+                t.update()
+                ret.append(generated_word)
+                seen_titles.add(generated_word.word.lower())
+
+        stats.num_returned = len(ret)
+        stats.wall_time = time.time() - start
+        return ret[:num], stats
+
+
+    @classmethod
     def generate_words(
         cls,
         tokenizer,
