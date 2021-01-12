@@ -1,7 +1,10 @@
-apiVersion: networking.gke.io/v1beta1
+apiVersion: networking.gke.io/v1beta2
 kind: ManagedCertificate
 metadata:
   name: website-certificate-www
 spec:
   domains:
     - www.thisworddoesnotexist.com
+    - thisworddoesnotexist.com
+    - thisslangdoesnotexist.com
+    - www.thisslangdoesnotexist.com
