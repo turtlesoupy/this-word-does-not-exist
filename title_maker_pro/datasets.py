@@ -337,17 +337,13 @@ class ParsedDictionaryDefinitionDataset(Dataset):
 
     @classmethod
     def approx_pos(cls, nlp, sentence, lookup_idx, lookup_len):
-        start_end_re = re.compile(r"start_char=(\d+)\|end_char=(\d+)")
         doc = nlp(sentence)
         uposes = Counter()
 
         for sentence in doc.sentences:
             for word in sentence.words:
-                m = start_end_re.match(word.misc)
-                if not m:
-                    raise RuntimeError("Unable to extract start and end positions!")
-                start_char = int(m.group(1))
-                end_char = int(m.group(2))
+                start_char = word.start_char
+                end_char = word.end_char
                 uposes[word.upos] += _len_range_overlap(
                     (lookup_idx, lookup_idx + lookup_len - 1), (start_char, end_char - 1)
                 )
