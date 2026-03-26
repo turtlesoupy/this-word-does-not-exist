@@ -1,0 +1,14 @@
+# Usage: gcloud builds submit . --config=cloudbuild.yaml --project=this-word-does-not-exist
+# secret_env_vars.sh is stored in GCS (excluded from git) and injected at build time.
+
+steps:
+# Fetch secrets (not stored in git)
+- name: 'gcr.io/cloud-builders/gsutil'
+  args: ['cp', 'gs://this-word-does-not-exist_cloudbuild/build-assets/secret_env_vars.sh', 'deploy/secret_env_vars.sh']
+
+# Build the Docker image
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/this-word-does-not-exist/website/website:$TAG_NAME', '-f', 'deploy/WebsiteDockerfile', '.']
+
+images:
+  - 'us-central1-docker.pkg.dev/this-word-does-not-exist/website/website:$TAG_NAME'
