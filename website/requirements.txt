@@ -17,7 +17,7 @@ hpack==3.0.0
 hyperframe==5.2.0
 idna==2.9
 multidict==4.7.5
-protobuf==3.11.3
+protobuf==5.29.6
 pycparser==2.20
 six==1.14.0
 yarl==1.4.2
