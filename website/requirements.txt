@@ -15,7 +15,7 @@ grpclib==0.3.1
 h2==3.2.0
 hpack==3.0.0
 hyperframe==5.2.0
-idna==2.9
+idna==3.15
 multidict==4.7.5
 protobuf==3.11.3
 pycparser==2.20
